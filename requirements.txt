@@ -11,8 +11,7 @@ fastapi==0.104.1
 h11==0.16.0
 idna==3.10
 passlib==1.7.4
-pydantic==2.5.0
-pydantic_core==2.14.1
+pydantic==1.10.13  # Downgraded to 1.x series
 PyJWT==2.10.1
 python-multipart==0.0.20
 rtree==1.4.0
