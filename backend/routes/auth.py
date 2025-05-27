@@ -27,7 +27,7 @@ async def register(user: UserCreate):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Login user and return JWT token"""
+    """Login user and return JWT token (form-based)"""
     user = User.get_by_email(form_data.username)
     
     if not user or not verify_password(form_data.password, user["password"]):
@@ -41,4 +41,30 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         data={"sub": user["id"]}
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": {
+        "id": user["id"],
+        "username": user["username"],
+        "email": user["email"]
+    }}
+
+@router.post("/login/json", response_model=Token)
+async def login_json(user_data: UserLogin):
+    """Login user and return JWT token (JSON-based)"""
+    user = User.get_by_email(user_data.email)
+    
+    if not user or not verify_password(user_data.password, user["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    access_token = create_access_token(
+        data={"sub": user["id"]}
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer", "user": {
+        "id": user["id"],
+        "username": user["username"],
+        "email": user["email"]
+    }}

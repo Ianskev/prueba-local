@@ -276,23 +276,3 @@ class Scanner:
                     return Token(keywords[lexema], lexema if keywords[lexema] in [Token.Type.BOOLVAL, Token.Type.INDEXTYPE, Token.Type.DATATYPE] else "")
                 else:
                     return Token(Token.Type.ID, self.get_lexema())
-
-
-def test_scanner(scanner : Scanner) -> None:
-    while True:
-        token = scanner.next_token()
-        print(token)
-        if token.type == Token.Type.END:
-            break
-        if token.type == Token.Type.ERR:
-            print("Error en scanner - caracter inválido")
-            break
-
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Incorrect number of arguments")
-        sys.exit(1)
-
-    scanner = Scanner(sys.argv[1])
-    test_scanner(scanner)

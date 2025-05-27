@@ -1,0 +1,52 @@
+/* General styling */
+body {
+    background-color: #f5f8fa;
+}
+
+/* CodeMirror SQL editor styling */
+.CodeMirror {
+    height: 150px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+}
+
+/* Table styling for results */
+.table-responsive {
+    max-height: 500px;
+}
+
+/* Message styling */
+.success-message {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.error-message {
+    color: #842029;
+    background-color: #f8d7da;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+/* Card hover effect for files and tables */
+.list-group-item-action:hover {
+    background-color: #e9ecef;
+    cursor: pointer;
+}
+
+/* File content pagination */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+/* Navigation active state */
+.navbar-nav .nav-link.active {
+    font-weight: bold;
+    text-decoration: underline;
+}
