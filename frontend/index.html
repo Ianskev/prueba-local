@@ -3,203 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuna Database Manager</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
+    <title>SQL Query System</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Auth Forms -->
-        <div id="auth-container" class="container mt-5">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <ul class="nav nav-tabs card-header-tabs" id="auth-tabs">
-                                <li class="nav-item">
-                                    <a class="nav-link active" id="login-tab" href="#">Login</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="register-tab" href="#">Register</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div id="login-form">
-                                <form id="login">
-                                    <div class="mb-3">
-                                        <label for="login-email" class="form-label">Email address</label>
-                                        <input type="email" class="form-control" id="login-email" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="login-password" class="form-label">Password</label>
-                                        <input type="password" class="form-control" id="login-password" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Login</button>
-                                </form>
-                            </div>
-                            <div id="register-form" style="display: none;">
-                                <form id="register">
-                                    <div class="mb-3">
-                                        <label for="register-username" class="form-label">Username</label>
-                                        <input type="text" class="form-control" id="register-username" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="register-email" class="form-label">Email address</label>
-                                        <input type="email" class="form-control" id="register-email" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="register-password" class="form-label">Password</label>
-                                        <input type="password" class="form-control" id="register-password" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Register</button>
-                                </form>
-                            </div>
-                            <div id="auth-message" class="mt-3"></div>
-                        </div>
-                    </div>
-                </div>
+    <div class="container">
+        <header>
+            <h1>SQL Query System</h1>
+            <div id="user-info" class="hidden">
+                <span id="username"></span>
+                <button id="logoutBtn">Logout</button>
             </div>
-        </div>
+        </header>
 
-        <!-- Main App (Hidden until auth) -->
-        <div id="app-container" style="display: none;">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="#">Kuna Database Manager</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse" id="navbarNav">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link active" href="#" id="dashboard-link">Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="#" id="files-link">Files</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="#" id="query-link">SQL Query</a>
-                            </li>
-                        </ul>
-                        <div class="d-flex">
-                            <span class="navbar-text me-3" id="username-display"></span>
-                            <button class="btn btn-outline-light" id="logout-btn">Logout</button>
-                        </div>
+        <main>
+            <!-- Authentication Section -->
+            <section id="authentication">
+                <div class="auth-container">
+                    <div class="auth-form">
+                        <h2>Login</h2>
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label for="loginEmail">Email:</label>
+                                <input type="email" id="loginEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Password:</label>
+                                <input type="password" id="loginPassword" required>
+                            </div>
+                            <button type="submit">Login</button>
+                        </form>
+                    </div>
+                    
+                    <div class="auth-form">
+                        <h2>Register</h2>
+                        <form id="registerForm">
+                            <div class="form-group">
+                                <label for="registerEmail">Email:</label>
+                                <input type="email" id="registerEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerUsername">Username:</label>
+                                <input type="text" id="registerUsername" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword">Password:</label>
+                                <input type="password" id="registerPassword" required>
+                            </div>
+                            <button type="submit">Register</button>
+                        </form>
                     </div>
                 </div>
-            </nav>
+            </section>
 
             <!-- Dashboard Section -->
-            <div id="dashboard-section" class="container mt-4">
+            <section id="dashboard" class="hidden">
                 <h2>Dashboard</h2>
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">Your Tables</div>
-                            <div class="card-body">
-                                <div id="tables-list" class="list-group">
-                                    <!-- Tables will be populated here -->
-                                </div>
-                            </div>
-                        </div>
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3>Your Tables</h3>
+                        <ul id="tablesList"></ul>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">Your CSV Files</div>
-                            <div class="card-body">
-                                <div id="csv-files-list" class="list-group">
-                                    <!-- CSV files will be populated here -->
-                                </div>
-                            </div>
-                        </div>
+                    <div class="card">
+                        <h3>Your CSV Files</h3>
+                        <ul id="filesList"></ul>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Files Section -->
-            <div id="files-section" class="container mt-4" style="display:none">
-                <h2>CSV Files</h2>
-                <div class="card mb-4">
-                    <div class="card-header">Upload CSV File</div>
-                    <div class="card-body">
-                        <form id="upload-form">
-                            <div class="mb-3">
-                                <label for="csv-file" class="form-label">Select CSV file</label>
-                                <input class="form-control" type="file" id="csv-file" accept=".csv" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Upload</button>
-                        </form>
-                        <div id="upload-message" class="mt-3"></div>
-                    </div>
+            <!-- Query Section -->
+            <section id="query-section" class="hidden">
+                <h2>SQL Query Editor</h2>
+                <div class="query-editor">
+                    <textarea id="queryInput" placeholder="Enter your SQL query here..."></textarea>
+                    <button id="executeQueryBtn">Execute Query</button>
                 </div>
+                <div id="queryMessage" class="message"></div>
+                <div class="result-container">
+                    <h3>Query Results</h3>
+                    <table id="resultTable"></table>
+                </div>
+            </section>
 
-                <div class="card">
-                    <div class="card-header">Your CSV Files</div>
-                    <div class="card-body">
-                        <div id="files-list" class="list-group">
-                            <!-- Files will be populated here -->
+            <!-- Upload Section -->
+            <section id="upload-section" class="hidden">
+                <div class="upload-container">
+                    <div class="card">
+                        <h3>Upload CSV File</h3>
+                        <div class="form-group">
+                            <label for="csvFileInput">Select CSV File:</label>
+                            <input type="file" id="csvFileInput" accept=".csv">
+                            <button id="uploadFileBtn">Upload</button>
                         </div>
                     </div>
-                </div>
-
-                <div class="modal fade" id="file-content-modal" tabindex="-1">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">File Content</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="table-responsive">
-                                    <table class="table table-striped" id="csv-content-table">
-                                        <!-- CSV content will be populated here -->
-                                    </table>
-                                </div>
-                            </div>
+                    
+                    <div class="card">
+                        <h3>Import CSV to Table</h3>
+                        <div class="form-group">
+                            <label for="userFiles">Select CSV File:</label>
+                            <select id="userFiles">
+                                <option value="">Select a file</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SQL Query Section -->
-            <div id="query-section" class="container mt-4" style="display:none">
-                <h2>SQL Query</h2>
-                <div class="card mb-4">
-                    <div class="card-header">Query Editor</div>
-                    <div class="card-body">
-                        <textarea id="sql-editor" class="form-control"></textarea>
-                        <button id="run-query" class="btn btn-primary mt-3">Run Query</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>Results</span>
-                            <span id="query-info" class="text-muted"></span>
+                        <div class="form-group">
+                            <label for="tableName">Select Table:</label>
+                            <select id="tableName">
+                                <option value="">Select a table</option>
+                            </select>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="query-message" class="mb-3"></div>
-                        <div class="table-responsive">
-                            <table class="table table-striped" id="query-results-table">
-                                <!-- Query results will be populated here -->
-                            </table>
-                        </div>
+                        <button id="importBtn">Import Data</button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2023 SQL Query System</p>
+        </footer>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/sql/sql.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/files.js"></script>
-    <script src="js/query.js"></script>
-    <script src="js/app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -1,43 +1,46 @@
-import sys, os
-root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if root_path not in sys.path:
-    sys.path.append(root_path)
-import subprocess
-
-from fastapi import FastAPI, Depends
+import os
+import uvicorn
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import time
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-try:
-    from parser import parser
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "bitarray"])
-    from parser import parser
+from backend.database import User, get_db
+from backend.schemas import User as UserSchema
+from backend.utils.auth import get_current_active_user
 
-# Import routes
-from backend.routes.auth import router as auth_router
-from backend.routes.files import router as file_router
-from backend.routes.query import router as query_router
+from backend.routers import auth, files, queries
 
-# Import database
-from backend.database.db import create_tables
+app = FastAPI(title="SQL Query System API")
 
-app = FastAPI()
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],
 )
 
+# Create uploads directory if it doesn't exist
+os.makedirs("uploads", exist_ok=True)
+
+# Mount the uploads directory as static files
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 # Include routers
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-app.include_router(file_router, prefix="/files", tags=["File Management"])
-app.include_router(query_router, prefix="/sql", tags=["SQL Queries"])
+app.include_router(auth.router)
+app.include_router(files.router)
+app.include_router(queries.router)
 
-@app.on_event("startup")
-async def startup_db_client():
-    # Initialize database tables at startup
-    create_tables()
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to SQL Query System API"}
 
+@app.get("/me", response_model=UserSchema)
+def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
