@@ -44,9 +44,19 @@ const Login = ({ onLogin }) => {
       // Guardar token como en app.js
       localStorage.setItem('authToken', authToken);
       
-      // Llamar onLogin y navegar
-      onLogin();
-      navigate('/files');
+      // Añade log para depuración
+      console.log('Login exitoso, token guardado:', authToken);
+      
+      if (typeof onLogin === 'function') {
+        onLogin();
+      } else {
+        console.error("Error: onLogin no es una función");
+      }
+      
+      // Retrasa un poco la navegación para asegurar que el estado se actualice
+      setTimeout(() => {
+        navigate('/files');
+      }, 100);
       
     } catch (error) {
       console.error('Login error:', error);

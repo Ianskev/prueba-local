@@ -19,7 +19,7 @@ function App() {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       setIsAuthenticated(!!token);
     };
     checkAuth();
@@ -30,7 +30,7 @@ function App() {
   }, []);
 
   const ProtectedRoute = ({ children }) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     if (!token) {
       return <Navigate to="/login" replace />;
     }
@@ -42,7 +42,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
     window.location.href = '/login';
   };
 

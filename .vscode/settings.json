@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "**/parser": true,
+        "**/core": true,     
+    },
+}

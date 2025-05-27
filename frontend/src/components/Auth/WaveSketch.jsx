@@ -28,11 +28,11 @@ export default function WaveSketch() {
         
         t += 0.01;
       };
+
       const drawWave = (p, frequency, amplitude, yPos, thickness, time) => {
         p.strokeWeight(thickness);
         p.beginShape();
         for (let x = 0; x < p.width; x++) {
-          
           const y = yPos + amplitude * p.sin(frequency * x * p.TWO_PI + time);
           p.vertex(x, y);
         }
