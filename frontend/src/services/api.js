@@ -102,6 +102,74 @@ export const queryService = {
 // Servicio de métricas
 export const metricsService = {
   getMetrics: () => api.get('/metrics'),
+  compareIndices: async (testConfig) => {
+    // Implementación de la comparación de índices
+    const results = {
+      indices: [],
+      executionTimes: [],
+      diskOperations: []
+    };
+    
+    try {
+      for (const indexType of testConfig.indexTypes) {
+        const tableName = `${testConfig.baseTableName}_${indexType.toLowerCase()}`;
+        results.indices.push(indexType);
+        
+        // Paso 1: Crear tabla con este índice
+        const createStartTime = performance.now();
+        await queryService.executeQuery(`
+          CREATE TABLE IF NOT EXISTS ${tableName} (
+            id INT PRIMARY KEY,
+            value INT,
+            name VARCHAR(50)
+          )`);
+          
+        // Crear el índice específico
+        await queryService.executeQuery(`
+          CREATE INDEX idx_${indexType.toLowerCase()} 
+          ON ${tableName}(value) USING ${indexType}
+        `);
+        
+        // Insertar datos de prueba
+        const batchSize = 100;
+        const totalRecords = Math.min(testConfig.dataSize, 1000);
+        
+        for (let i = 0; i < totalRecords; i += batchSize) {
+          let valuesBatch = [];
+          for (let j = 0; j < batchSize && i + j < totalRecords; j++) {
+            valuesBatch.push(`(${i + j}, ${Math.floor(Math.random() * 1000)}, 'name-${i + j}')`);
+          }
+          await queryService.executeQuery(`
+            INSERT INTO ${tableName} (id, value, name) VALUES ${valuesBatch.join(',')}
+          `);
+        }
+        
+        const createEndTime = performance.now();
+        const createTime = createEndTime - createStartTime;
+        
+        // Paso 2: Ejecutar consulta para medir rendimiento
+        const queryStartTime = performance.now();
+        const queryResult = await queryService.executeQuery(`
+          SELECT * FROM ${tableName} WHERE value < 500
+        `);
+        const queryEndTime = performance.now();
+        const queryTime = queryEndTime - queryStartTime;
+        
+        results.executionTimes.push({
+          createTime: createTime,
+          queryTime: queryTime,
+          totalTime: createTime + queryTime
+        });
+        
+        // Extraer operaciones de disco si están disponibles
+        results.diskOperations.push(queryResult.disk_operations || 0);
+      }
+    } catch (err) {
+      console.error("Error en comparación de índices:", err);
+    }
+    
+    return results;
+  }
 };
 
 export default api;
