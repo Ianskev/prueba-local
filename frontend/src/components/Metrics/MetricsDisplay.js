@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Alert, Spinner, Nav, Tab } from 'react-bootstrap';
-import axios from 'axios';
+import { metricsService } from '../../services/api'; // Importamos metricsService en lugar de axios
 import IndexComparison from './IndexComparison';
 
 const MetricCard = ({ title, value, unit = '', icon }) => (
@@ -29,12 +29,8 @@ const MetricsDisplay = () => {
     const fetchMetrics = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/metrics', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        // Usamos metricsService.getMetrics() en lugar de axios directo
+        const response = await metricsService.getMetrics();
         
         setMetrics(response.data);
         setError('');
