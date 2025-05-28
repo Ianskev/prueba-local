@@ -88,7 +88,7 @@ export const tableService = {
 // Servicio de consultas
 export const queryService = {
   executeQuery: async (query) => {
-    const response = await api.post('/query', { query });
+    const response = await api.post('/sql', { query });
     
     console.log('=== API SERVICE DEBUG ===');
     console.log('Full axios response:', response);
