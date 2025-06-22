@@ -1,10 +1,10 @@
 # indices/isam.py
 
 import os, struct, math, re
-from core.schema import TableSchema, Column, IndexType
-from core import utils
-from core import stats
-from core.record_file import RecordFile
+from engine.schema import TableSchema, Column, IndexType
+from engine import utils
+from engine import stats
+from engine.record_file import RecordFile
 import logger
 
 # --------------------------------------------------------------------

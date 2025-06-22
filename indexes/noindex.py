@@ -3,9 +3,9 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from core.schema import TableSchema, Column
-from core import utils
-from core.record_file import RecordFile
+from engine.schema import TableSchema, Column
+from engine import utils
+from engine.record_file import RecordFile
 
 class NoIndex:
 	def __init__(self, schema:TableSchema, column:Column):

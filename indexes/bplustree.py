@@ -5,9 +5,9 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import logger
-from core.schema import TableSchema, Column, DataType, IndexType
-from core import utils
-from core import stats
+from engine.schema import TableSchema, Column, DataType, IndexType
+from engine import utils
+from engine import stats
 
 class NodeBPlus:
 	BLOCK_FACTOR = 3

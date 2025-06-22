@@ -13,9 +13,9 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
-from core.record_file import RecordFile
-from core import utils
-from core.schema import IndexType
+from engine.record_file import RecordFile
+from engine import utils
+from engine.schema import IndexType
 import logger
 
 

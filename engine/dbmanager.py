@@ -6,9 +6,9 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from core.conditionschema import Condition, BinaryCondition, BetweenCondition, NotCondition, BooleanColumn, ConditionColumn, ConditionValue, ConditionSchema, BinaryOp
-from core.schema import DataType, TableSchema, IndexType, SelectSchema, DeleteSchema
-from core import utils
+from engine.conditionschema import Condition, BinaryCondition, BetweenCondition, NotCondition, BooleanColumn, ConditionColumn, ConditionValue, ConditionSchema, BinaryOp
+from engine.schema import DataType, TableSchema, IndexType, SelectSchema, DeleteSchema
+from engine import utils
 from indexes.bplustree import BPlusTree
 from indexes.avltree import AVLTree
 from indexes.EHtree import ExtendibleHashTree
@@ -18,7 +18,7 @@ from indexes.noindex import NoIndex
 
 import csv
 
-from core.record_file import Record, RecordFile
+from engine.record_file import Record, RecordFile
 import logger
 
 class DBManager:

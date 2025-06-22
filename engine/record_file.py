@@ -1,6 +1,6 @@
 import struct
-from core.schema import TableSchema, DataType
-from core import utils
+from engine.schema import TableSchema, DataType
+from engine import utils
 import logger
 import os
 

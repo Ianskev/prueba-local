@@ -2,7 +2,7 @@ import os, sys
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
-from core.schema import DataType, Column
+from engine.schema import DataType, Column
 
 def calculate_record_format(columns: list[Column]):
     fmt = ""
