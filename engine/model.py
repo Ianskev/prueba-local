@@ -80,7 +80,6 @@ class TableSchema:
                 return RTreeIndex(self, column)
             case IndexType.BRIN:
                 pass
-                # BRIN(table_schema, column)
             case IndexType.NONE:
                 return None
             case _:
@@ -98,7 +97,6 @@ class TableSchema:
 
 
     def __repr__(self):
-        # Para asegurarnos de que la serialización sea adecuada
         return f"TableSchema(table_name={self.table_name}, columns={self.columns})"
 
 class SelectSchema:

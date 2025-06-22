@@ -1,7 +1,7 @@
 # indices/isam.py
 
 import os, struct, math, re
-from engine.schema import TableSchema, Column, IndexType
+from engine.model import TableSchema, Column, IndexType
 from engine import utils
 from engine import stats
 from engine.record_file import RecordFile

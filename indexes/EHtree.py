@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import struct
 import pickle
-from engine.schema import TableSchema, Column, IndexType
+from engine.model import TableSchema, Column, IndexType
 from engine import utils
 import logger
 from engine import stats

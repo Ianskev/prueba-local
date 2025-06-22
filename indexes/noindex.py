@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from engine.schema import TableSchema, Column
+from engine.model import TableSchema, Column
 from engine import utils
 from engine.record_file import RecordFile
 

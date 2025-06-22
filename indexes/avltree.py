@@ -4,7 +4,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logger
-from engine.schema import TableSchema, Column, IndexType, DataType
+from engine.model import TableSchema, Column, IndexType, DataType
 from engine import utils
 from engine import stats
 

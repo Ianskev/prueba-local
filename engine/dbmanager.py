@@ -7,7 +7,7 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from engine.conditionschema import Condition, BinaryCondition, BetweenCondition, NotCondition, BooleanColumn, ConditionColumn, ConditionValue, ConditionSchema, BinaryOp
-from engine.schema import DataType, TableSchema, IndexType, SelectSchema, DeleteSchema
+from engine.model import DataType, TableSchema, IndexType, SelectSchema, DeleteSchema
 from engine import utils
 from indexes.bplustree import BPlusTree
 from indexes.avltree import AVLTree
@@ -22,17 +22,15 @@ from engine.record_file import Record, RecordFile
 import logger
 
 class DBManager:
-    _instance = None  # Clase-level singleton reference
+    _instance = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            # Crea una nueva instancia y guárdala en la clase
             cls._instance = super(DBManager, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
-        # Solo inicializa la primera vez
         if self._initialized:
             return
         self.tables_path = f"{os.path.dirname(__file__)}/../tables"
@@ -55,7 +53,7 @@ class DBManager:
         with open(f"{path}/metadata.dat", "wb") as file:
             pickle.dump(table_schema, file)
 
-    def get_index(self, table_schema : TableSchema, column_name : str): # TODO falta crear un nuevo indice NoIndex
+    def get_index(self, table_schema : TableSchema, column_name : str):
         index_name = f"{table_schema.table_name}.{column_name}"
         if index_name in self.indexes:
             return self.indexes[index_name]
@@ -217,9 +215,6 @@ class DBManager:
                 self.error("table doesn't exist")
             else:
                 return
-            
-
-    #------------------------ SELECT IMPLEMENTATION ----------------------------
 
     def select(self, select_schema : SelectSchema) -> dict[str, list]:
         table = self.get_table_schema(select_schema.table_name)
@@ -389,7 +384,6 @@ class DBManager:
         else:
             self.error("invalid condition")
         
-    #------------------------ INSERT IMPLEMENTATION ----------------------------
 
     def insert(self, table_name:str, values: list, columns: list):
         tableSchema: TableSchema = self.get_table_schema(table_name)
@@ -418,7 +412,6 @@ class DBManager:
         record_file = RecordFile(tableSchema)
         pos = record_file.append(record)
 
-        #insertar los indexes
         for i, column in enumerate(tableSchema.columns):
             index = self.get_index(tableSchema, column.name)
             if index:
@@ -472,8 +465,8 @@ class DBManager:
         max_pos = record_file.max_id()
 
         indexes = table_schema.get_indexes()
-        column_index = table_schema.columns.index(column)  # posición de la columna en el esquema
-        index_structure = indexes[column.name]  # estructura del índice recién creado
+        column_index = table_schema.columns.index(column)
+        index_structure = indexes[column.name]
         print(index_type)
         if index_type == IndexType.ISAM:
             index_structure.build_index()
@@ -481,7 +474,7 @@ class DBManager:
         else:
             while pos < max_pos:
                 record = record_file.read(pos)
-                if record is not None:  # Evita registros borrados si usas lista libre
+                if record is not None:
                     value = record.values[column_index]
                     index_structure.insert(pos, value)
                 pos += 1
@@ -504,29 +497,25 @@ class DBManager:
         self.error(f"Index with name '{index_name}' on table '{table_name}' doesn't exist")
 
     def import_csv(self, table_name: str, csv_path: str):
-        # Obtener el esquema de la tabla
         table_schema: TableSchema = self.get_table_schema(table_name)
 
         with open(csv_path, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             header = next(reader)
 
-            # Validar que las columnas existan en el esquema
             for col_name in header:
                 if not table_schema.get_column_by_name(col_name):
                     raise ValueError(f"Columna '{col_name}' no existe en la tabla '{table_name}'")
 
-            # Mapeo de nombre a tipo
             column_types = [
                 table_schema.get_column_by_name(col_name).data_type for col_name in header
             ]
 
             for row_num, row in enumerate(reader, start=2):
                 if not row or all(cell.strip() == '' for cell in row):
-                    continue  # Saltar filas vacías
+                    continue
 
                 try:
-                    # Convertir tipos según el esquema
                     converted = [
                         utils.convert_value(value, col_type)
                         for value, col_type in zip(row, column_types)

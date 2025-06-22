@@ -2,7 +2,7 @@ import os, sys
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
-from engine.schema import DataType, Column
+from engine.model import DataType, Column
 
 def calculate_record_format(columns: list[Column]):
     fmt = ""
@@ -47,7 +47,7 @@ def get_empty_value(column: Column):
     elif column.data_type == DataType.FLOAT:
         return -1.0
     elif column.data_type == DataType.VARCHAR:
-        return ""  # representamos vacío como string vacío
+        return ""
     elif column.data_type == DataType.BOOL:
         return False
     else:
@@ -59,7 +59,7 @@ def get_min_value(column: Column):
     elif column.data_type == DataType.FLOAT:
         return -10**18
     elif column.data_type == DataType.VARCHAR:
-        return ""  # representamos vacío como string vacío
+        return ""
     elif column.data_type == DataType.BOOL:
         return False
     else:
@@ -71,7 +71,7 @@ def get_max_value(column: Column):
     elif column.data_type == DataType.FLOAT:
         return 10**18
     elif column.data_type == DataType.VARCHAR:
-        return chr(0x10FFFF) * 10  # representamos vacío como string vacío
+        return chr(0x10FFFF) * 10
     elif column.data_type == DataType.BOOL:
         return True
     else:
@@ -138,5 +138,5 @@ def get_record_file_path(table_name: str) -> str:
     return get_table_file_path(table_name, f"{table_name}.dat")
 
 def get_index_file_path(table_name: str, column_name: str, index_type: IndexType) -> str:
-    index_name = index_type.name.lower()  # e.g., BTREE → btree
+    index_name = index_type.name.lower()
     return get_table_file_path(table_name, f"{table_name}_{column_name}_{index_name}.dat")

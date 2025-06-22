@@ -15,7 +15,7 @@ if root_path not in sys.path:
 
 from engine.record_file import RecordFile
 from engine import utils
-from engine.schema import IndexType
+from engine.model import IndexType
 import logger
 
 
