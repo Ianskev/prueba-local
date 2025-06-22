@@ -17,7 +17,7 @@ class NodeBPlus:
 		if keys is None:
 			keys = []
 		self.column = column
-		self.FORMAT = "<" + str(utils.calculate_column_format(column) * self.BLOCK_FACTOR) + str("i" * (self.BLOCK_FACTOR + 1)) + "iii" # num keys + 1 = num pointers, + isLeaf, size, nextNode
+		self.FORMAT = "<" + str(utils.calculate_column_format(column) * self.BLOCK_FACTOR) + str("i" * (self.BLOCK_FACTOR + 1)) + "iii"
 		self.NODE_SIZE = struct.calcsize(self.FORMAT)
 		if isLeaf:
 			if len(pointers) != len(keys):
@@ -42,8 +42,6 @@ class NodeBPlus:
 	
 	def addLeafId(self, key:any, pointer:int):
 		self.logger.debug(f"Adding id: {key} and pointer: {pointer} in bucket")
-		#if len(self.pointers) != len(self.keys):
-		#	raise Exception("In leaf node, number of keys and pointers must be equal")
 		
 		if not self.isFull():
 			self.keys[self.size] = key
@@ -121,7 +119,7 @@ class NodeBPlus:
 			end = start + key_size
 			val = struct.unpack(key_fmt, record[start:end])[0]
 			if column.data_type == DataType.FLOAT:
-				val = round(val,6) #float precision
+				val = round(val,6)
 			if column.data_type == DataType.VARCHAR:
 				val = val.decode().strip("\x00")
 			keys.append(val)
@@ -147,21 +145,20 @@ class BPlusFile:
 		self.logger = logger.CustomLogger(f"BPLUSFILE-{schema.table_name}-{column.name}".upper())
 		
 		self.NODE_SIZE = struct.calcsize("<" + (utils.calculate_column_format(column) * NodeBPlus.BLOCK_FACTOR) + ("i" * (NodeBPlus.BLOCK_FACTOR + 1)) + "iii")
-		#self.logger.logger.setLevel(logging.WARNING)
 
 		if not os.path.exists(self.filename):
 			self.logger.fileNotFound(self.filename)
-			self.initialize_file(self.filename) # if archive not exists
+			self.initialize_file(self.filename)
 		else:
 			with open(self.filename, "rb+") as file:
 				file.seek(0,2)
 				if(file.tell() == 0):
 					self.logger.fileIsEmpty(self.filename)
-					self.initialize_file(self.filename) # if archive is empty
+					self.initialize_file(self.filename)
 
 	def initialize_file(self, filename):
 		with open(filename, "wb") as file:
-			header = -1 # root
+			header = -1
 			file.write(struct.pack("i", header))
 			stats.count_write()
 	
@@ -184,7 +181,7 @@ class BPlusFile:
 		data = node.pack()
 		with open(self.filename, "rb+") as file:
 			if pos == -1:
-				file.seek(0, 2)  # ir al final
+				file.seek(0, 2)
 				offset = file.tell()
 				pos = (offset - self.HEADER_SIZE) // self.NODE_SIZE
 			else:
@@ -232,7 +229,7 @@ class BPlusTree:
 			self.logger.info(f"Creating new root, first record with id: {val}")
 			root = NodeBPlus(column=self.column, isLeaf=True)
 			root.addLeafId(val, pos)
-			rootPos = self.indexFile.writeBucket(-1, root) # new bucket
+			rootPos = self.indexFile.writeBucket(-1, root)
 			self.indexFile.writeHeader(rootPos)
 			return
 		
@@ -242,7 +239,6 @@ class BPlusTree:
 			self.logger.successfulInsertion(self.indexFile.filename, val)
 			return
 		
-		# ¡SI HAY SPLIT, CREAMOS NUEVA RAIZ DIRECTAMENTE!
 		self.logger.info(f"Root was split, Creating new root")
 		newRoot = NodeBPlus(
 			self.column,
@@ -256,9 +252,9 @@ class BPlusTree:
 		self.logger.info(f"New root created with keys: {newRoot.keys}")
 		self.logger.successfulInsertion(self.indexFile.filename, val)
 	
-	def insertAux(self, nodePos:int, key:any, pointer:int) -> tuple[bool, any, int]: # split?, key, pointer
+	def insertAux(self, nodePos:int, key:any, pointer:int) -> tuple[bool, any, int]:
 		node:NodeBPlus = self.indexFile.readBucket(nodePos)
-		if(node.isLeaf): # if is leaf, insert
+		if(node.isLeaf):
 			node.insertInLeaf(key, pointer)
 			if(not node.isFull()):
 				self.indexFile.writeBucket(nodePos, node)
@@ -279,7 +275,7 @@ class BPlusTree:
 
 		else:
 			ite = 0
-			while(ite < node.size and node.keys[ite] < key): # finding where to insert id
+			while(ite < node.size and node.keys[ite] < key):
 				ite += 1
 			split, newKey, newPointer = self.insertAux(node.pointers[ite], key, pointer)
 
@@ -295,11 +291,11 @@ class BPlusTree:
 			
 			self.logger.info(f"node intern is full, splitting node with keys: {node.keys}")
 			mid = node.size // 2
-			leftKeys, rightKeys = node.keys[:mid], node.keys[mid+1:] # split keys but one is going up
+			leftKeys, rightKeys = node.keys[:mid], node.keys[mid+1:]
 			upKey = node.keys[mid]
-			leftPointers, rightPointers = node.pointers[:mid+1], node.pointers[mid+1:] # pointers split but maintain for them
+			leftPointers, rightPointers = node.pointers[:mid+1], node.pointers[mid+1:]
 			
-			newNode = NodeBPlus(self.column, rightKeys, rightPointers, False, len(rightKeys), -1) # no next node
+			newNode = NodeBPlus(self.column, rightKeys, rightPointers, False, len(rightKeys), -1)
 			upPointer = self.indexFile.writeBucket(-1, newNode)
 			node = NodeBPlus(self.column, leftKeys, leftPointers, False, len(leftKeys), -1)
 			self.indexFile.writeBucket(nodePos, node)
@@ -407,7 +403,7 @@ class BPlusTree:
 			print("Tree is empty.")
 			return
 
-		queue = [(rootPos, 0)]  # (position, level)
+		queue = [(rootPos, 0)]
 		currentLevel = 0
 
 		print(f"Level {currentLevel}: ", end="")
@@ -417,14 +413,12 @@ class BPlusTree:
 
 			if level != currentLevel:
 				currentLevel = level
-				print()  # salto de línea
+				print()
 				print(f"Level {currentLevel}: ", end="")
 
-			# mostrar el bucket
 			keys = [k for k in node.keys if k != self.empty_key]
 			print(f" {keys}", end="  ")
 
-			# meter hijos a la cola
 			if not node.isLeaf:
 				for ptr in node.pointers[:node.size+1]:
 					if ptr != -1:

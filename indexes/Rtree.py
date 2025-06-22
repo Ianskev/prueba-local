@@ -1,14 +1,13 @@
 import subprocess, sys
 import os
 
-# Intentar instalar e importar Rtree
 try:
     from rtree import index
 except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "Rtree"])
     from rtree import index
 
-# Asegurar acceso al paquete raíz
+
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
@@ -18,10 +17,6 @@ from engine import utils
 from engine.model import IndexType
 import logger
 
-
-# -------------------------
-# Clases de geometría      
-# -------------------------
 class Point:
     """
     Representa un punto 2D.
@@ -79,16 +74,14 @@ class Circle:
     def __repr__(self):
         return f"Circle(center=({self.cx}, {self.cy}), r={self.r})"
 
-# --------------------------------------------
-# Clase principal: RTreeIndex                  
-# --------------------------------------------
+
 class RTreeIndex:
     """
     Índice R-Tree 2D integrado con RecordFile y DBManager.
     Inserciones, borrados, búsquedas puntuales y búsquedas por región (MBR o círculo).
     """
     def __init__(self, table_schema, column):
-        # referencias internas
+
         self.table_schema = table_schema
         self.column = column
         self.col_idx = table_schema.columns.index(column)
@@ -102,18 +95,18 @@ class RTreeIndex:
             self.logger = None
 
 
-        # ruta base para .idx/.dat
+
         path = utils.get_index_file_path(
             table_schema.table_name,
             column.name,
             IndexType.RTREE
         )
-        path = path[:-4]  # quitar .dat
+        path = path[:-4]
         
-        # RecordFile de la tabla
+
         self.rf = RecordFile(table_schema)
 
-        # crear/abrir R-Tree en disco
+
         props = index.Property()
         props.dimension = 2
         
@@ -122,7 +115,7 @@ class RTreeIndex:
         else:
             self.idx = index.Index(path, properties=props)
 
-        # reconstruir mapeo key->pos
+
         self._key_to_pos = {}
         self._rebuild_mapping()
 
@@ -131,14 +124,14 @@ class RTreeIndex:
         Convierte distintos formatos de clave a coordenadas (x,y).
         Acepta string "(x,y)", tupla/lista o Point.
         """
-        # Point
+
         if hasattr(key, 'x') and hasattr(key, 'y'):
             return key.x, key.y
-        # string "(x,y)"
+
         if isinstance(key, str):
             x_str, y_str = key.strip('()').split(',')
             return float(x_str), float(y_str)
-        # iterable (x,y)
+
         return tuple(map(float, key))
 
     def _rebuild_mapping(self):
@@ -207,7 +200,7 @@ class RTreeIndex:
         if isinstance(region, MBR):
             return list(self.idx.intersection(region.bounds()))
         if isinstance(region, Circle):
-            # Filtrado circular
+
             cand = list(self.idx.intersection(region.mbr()))
             res = []
             for pos in cand:

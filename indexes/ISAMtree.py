@@ -1,15 +1,9 @@
-# indices/isam.py
-
 import os, struct, math, re
 from engine.model import TableSchema, Column, IndexType
 from engine import utils
 from engine import stats
 from engine.record import RecordFile
 import logger
-
-# --------------------------------------------------------------------
-# 0) Utils for strings
-# --------------------------------------------------------------------
 
 _SUFIJO = re.compile(r"(.*?)(\d+)$")
 
@@ -40,7 +34,6 @@ def decrement_string_id(key: str, offset: float) -> str:
     """
     m = _SUFIJO.match(key)
     if not m:
-        # si no tiene sufijo numérico, no sabemos decrementar
         return key
     prefijo, num = m.groups()
     nuevo = int(round(int(num) - offset))
@@ -48,12 +41,7 @@ def decrement_string_id(key: str, offset: float) -> str:
         nuevo = 0
     return f"{prefijo}{nuevo}"
 
-# --------------------------------------------------------------------
-# 1) Record + Page definitions
-# --------------------------------------------------------------------
-
 class LeafRecord:
-    # clave (tipo según columna) + posición de datos (int)
     def __init__(self, column: Column, key, datapos: int):
         self.column = column
         self.FMT = utils.calculate_column_format(column) + "i"
@@ -62,7 +50,6 @@ class LeafRecord:
         self.datapos = datapos
 
     def pack(self) -> bytes:
-        # varchar → encode+padded, demás → pasarlo directamente
         val = self.key.encode() if self.column.data_type == utils.DataType.VARCHAR else self.key
         return self.STRUCT.pack(val, self.datapos)
 
@@ -79,7 +66,6 @@ class LeafRecord:
         return LeafRecord(column, val, datapos)
 
 class IndexRecord:
-    # clave + dos punteros (int,int)
     def __init__(self, column: Column, key, left: int, right: int):
         self.column = column
         self.FMT = utils.calculate_column_format(column) + "ii"
@@ -104,7 +90,7 @@ class IndexRecord:
         return IndexRecord(column, key, left, right)
 
 class LeafPage:
-    HEADER_FMT = "iii"  # page_num, next_page, not_overflow
+    HEADER_FMT = "iii"
     HSIZE      = struct.calcsize(HEADER_FMT)
 
     def __init__(self, page_num:int, next_page:int, not_overflow:int, records, leaf_factor):
@@ -113,7 +99,6 @@ class LeafPage:
         self.not_overflow = not_overflow
         self.records      = records
         self.leaf_factor  = leaf_factor
-        # struct = cabecera + leaf_factor * registro
         self.STRUCT       = struct.Struct(self.HEADER_FMT + "".join(r.FMT for r in records))
 
     def pack(self):
@@ -129,7 +114,7 @@ class LeafPage:
 
 
 class IndexPage:
-    HEADER_FMT = "i"   # page_num
+    HEADER_FMT = "i"
     HSIZE      = struct.calcsize(HEADER_FMT)
 
     def __init__(self, page_num, records, index_factor):
@@ -151,13 +136,8 @@ class IndexPage:
                 return rec.left
         return self.records[-1].right
 
-
-# --------------------------------------------------------------------
-# 2) ISAMFile: acceso al disco
-# --------------------------------------------------------------------
-
 class ISAMFile:
-    HEADER_FMT    = "ii"  # leaf_factor, index_factor
+    HEADER_FMT    = "ii"
     HEADER_STRUCT = struct.Struct(HEADER_FMT)
     HEADER_SIZE   = HEADER_STRUCT.size
 
@@ -178,17 +158,13 @@ class ISAMFile:
                                 IndexType.ISAM)
         self.step = None
 
-        # asegurarnos de que existe y escribir cabecera
-        # asegurarnos de que existe
         if not os.path.exists(self.filename):
             open(self.filename, "wb").close()
-            # -- archivo nuevo: escribir cabecera con los factores iniciales
             with open(self.filename, "r+b") as f:
                 f.seek(0)
                 f.write(self.HEADER_STRUCT.pack(leaf_factor, index_factor))
                 stats.count_write()
         else:
-            # -- archivo existente: leer la cabecera y asignar leaf_factor/index_factor
             lf, ix = self.read_header()
             self.leaf_factor = lf
             self.index_factor = ix
@@ -200,7 +176,6 @@ class ISAMFile:
         return lf, ix
 
     def _fmt_root(self):
-        # 'i' + index_factor * (clave FMT + 'ii')
         key_fmt = utils.calculate_column_format(self.column)
         return "i" + (key_fmt + "ii") * self.index_factor
 
@@ -217,7 +192,6 @@ class ISAMFile:
             f.seek(self._offset_root())
             buf = f.read(size)
             stats.count_read()
-        # desempacar
         hdr = buf[:IndexPage.HSIZE]
         page_num = struct.unpack(IndexPage.HEADER_FMT, hdr)[0]
         records = []
@@ -238,13 +212,12 @@ class ISAMFile:
         return self.HEADER_SIZE + self._size_root()
 
     def read_level1_page(self, page_idx: int) -> 'IndexPage':
-        lvl_size = self._size_root()  # mismo formato que root
+        lvl_size = self._size_root()
         off = self._offset_level1() + page_idx * lvl_size
         with open(self.filename, "rb") as f:
             f.seek(off)
             buf = f.read(lvl_size)
             stats.count_read()
-        # desempacar idéntico a root
         hdr = buf[:IndexPage.HSIZE]
         page_num = struct.unpack(IndexPage.HEADER_FMT, hdr)[0]
         recs = []
@@ -264,13 +237,10 @@ class ISAMFile:
             stats.count_write()
 
     def _offset_leaves(self):
-        # después de ROOT + (index_factor) páginas nivel1
         return self.HEADER_SIZE + self._size_root() + self._size_root() * (1 + self.index_factor)
 
     def _size_leaf(self):
-        # cabecera + leaf_factor * (formato clave + i)
         key_fmt = utils.calculate_column_format(self.column)
-        # (key_fmt + "i") es el formato de UN registro; lo repetimos leaf_factor veces
         rec_fmt = key_fmt + "i"
         sz = struct.calcsize(LeafPage.HEADER_FMT + rec_fmt * self.leaf_factor)
         return sz
@@ -282,7 +252,6 @@ class ISAMFile:
         total = os.path.getsize(self.filename)
         leaves_off = self._offset_leaves()
         leaf_sz    = self._size_leaf()
-        # floor division will drop any trailing padding
         return max(0, (total - leaves_off) // leaf_sz)
 
     def append_leaf_page(self, page: 'LeafPage'):
@@ -303,7 +272,6 @@ class ISAMFile:
             f.seek(off)
             buf = f.read(sz)
             stats.count_read()
-        # desempacar
         pn, nxt, nof = struct.unpack(LeafPage.HEADER_FMT, buf[:LeafPage.HSIZE])
         recs = []
         ptr = LeafPage.HSIZE
@@ -329,7 +297,6 @@ class ISAMFile:
         Si not_overflow es None, preserva el flag actual de esa página.
         """
         lf, ix = self.read_header()
-        # tamaños
         rec0 = IndexRecord(self.column, 0, 0, 0)
         record_size = rec0.STRUCT.size
         lr0 = LeafRecord(self.column, 0, 0)
@@ -339,12 +306,10 @@ class ISAMFile:
         leaf_off = self._offset_leaves()
         leaf_sz = LeafPage.HSIZE + lf * leaf_record_size
 
-        # si no nos pasan not_overflow, lo leemos primero
         if not_overflow is None:
             old = self.read_leaf_page(leaf_num)
             not_overflow = old.not_overflow if old else 0
 
-        # construimos y escribimos la página completa
         page = LeafPage(leaf_num, next_page, not_overflow, records, lf)
         with open(self.filename, "r+b") as f:
             f.seek(leaf_off + leaf_num * leaf_sz)
@@ -354,10 +319,9 @@ class ISAMFile:
     def copy_to_leaf_records(self, rf: RecordFile):
         l = self.leaf_factor
         i = self.index_factor
-        p = (i + 1) ** 2  # número de páginas regulares
+        p = (i + 1) ** 2
         empty_key = utils.get_empty_value(self.column)
 
-        # --- NUEVO: índice de la columna en el esquema ---
         col_idx = None
         for idx, col in enumerate(self.schema.columns):
             if col.name == self.column.name:
@@ -365,8 +329,7 @@ class ISAMFile:
                 break
         if col_idx is None:
             raise Exception(f"Columna {self.column.name} no encontrada en el esquema")
-        # -----------------------------------------------
-
+        
         lf, ix = self.read_header()
         leaf_sz = self._size_leaf()
         leaves_off = self._offset_leaves()
@@ -375,7 +338,6 @@ class ISAMFile:
         reg_pages = 0
         max_pos = rf.max_id()
 
-        # Caso sin registros en RF
         if max_pos == 0:
             with open(self.filename, "r+b") as f:
                 f.seek(0, os.SEEK_END)
@@ -391,7 +353,6 @@ class ISAMFile:
             self._link_leaf_pages(leaves_off, leaf_sz, leaf_idx)
             return
 
-        # 1) Carga y ordena registros según el valor de self.column
         leafrecs = []
         for pos in range(max_pos):
             rec = rf.read(pos)
@@ -402,14 +363,12 @@ class ISAMFile:
         leafrecs.sort(key=lambda x: x[0])
 
         with open(self.filename, "r+b") as f:
-            # Reservar espacio hasta la primera hoja
             f.seek(0, os.SEEK_END)
             if f.tell() < leaves_off:
                 f.write(b'\x00' * (leaves_off - f.tell()))
                 stats.count_write()
             f.seek(leaves_off)
 
-            # 2) Caso: caben en p hojas regulares
             if len(leafrecs) <= p * l:
                 idx = 0
                 while reg_pages < p and idx < len(leafrecs):
@@ -417,7 +376,6 @@ class ISAMFile:
                     slots = p - reg_pages
                     to_take = math.ceil(remain / slots)
 
-                    # Agrupar duplicados
                     end = idx + to_take
                     while end < len(leafrecs) and leafrecs[end][0] == leafrecs[end - 1][0]:
                         end += 1
@@ -425,7 +383,6 @@ class ISAMFile:
                     idx = end
                     reg_pages += 1
 
-                    # Página regular
                     hoja = window[:l]
                     overflow = window[l:]
                     chunk = [LeafRecord(self.column, k, dp) for k, dp in hoja]
@@ -434,7 +391,6 @@ class ISAMFile:
                     self.write_leaf_page(LeafPage(leaf_idx, -1, 1, chunk, l))
                     leaf_idx += 1
 
-                    # Páginas de overflow
                     for j in range(0, len(overflow), l):
                         seg = overflow[j:j + l]
                         chunk = [LeafRecord(self.column, k, dp) for k, dp in seg]
@@ -443,14 +399,12 @@ class ISAMFile:
                         self.write_leaf_page(LeafPage(leaf_idx, -1, 0, chunk, l))
                         leaf_idx += 1
 
-                # Llenar con hojas vacías si hacen falta
                 while reg_pages < p:
                     chunk = [LeafRecord(self.column, empty_key, -1) for _ in range(l)]
                     self.write_leaf_page(LeafPage(leaf_idx, -1, 1, chunk, l))
                     leaf_idx += 1
                     reg_pages += 1
 
-            # 3) Caso: más de p*l registros → todas overflow=0
             else:
                 chunk = []
                 for k, dp in leafrecs:
@@ -465,7 +419,6 @@ class ISAMFile:
                     self.write_leaf_page(LeafPage(leaf_idx, -1, 0, chunk, l))
                     leaf_idx += 1
 
-        # 4) Finalmente, enlazamos todas las hojas
         self._link_leaf_pages(leaves_off, leaf_sz, leaf_idx)
 
     def _link_leaf_pages(self, leaf_off: int, leaf_sz: int, count: int):
@@ -476,21 +429,15 @@ class ISAMFile:
         empty_key = utils.get_empty_value(self.column)
 
         for page_num in range(count):
-            # 1) Leemos la página actual para extraer sus registros y flag
             leaf = self.read_leaf_page(page_num)
-            # 2) Calculamos su next_page
             next_pg = page_num + 1 if page_num + 1 < count else -1
-            # 3) Asegurarnos de tener exactamente leaf_factor registros
             records = leaf.records
-            #    (normalmente ya vienen completos; si no, rellenamos con empty)
             if len(records) < self.leaf_factor:
                 padding = [
                     LeafRecord(self.column, empty_key, -1)
                     for _ in range(self.leaf_factor - len(records))
                 ]
                 records = records + padding
-            # 4) Reescribimos la página con el nuevo next_page
-            #    (usa write_leaf_page_at para que internamente haga el pack correcto)
             self.write_leaf_page_at(
                 page_num,
                 records,
@@ -499,14 +446,6 @@ class ISAMFile:
             )
 
     def _build_level1_phase1(self, f, ctx):
-        """
-        Fase 1: genera páginas de nivel 1 apuntando a hojas reales y sus overflow.
-        Al toparse con la primera hoja completamente vacía (todos IDs == empty_value)
-        o un 'right' que caiga en hoja vacía, termina y devuelve
-        (last_boundary, partial_chunk), donde partial_chunk es la lista de
-        IndexRecord que quedó incompleta.
-        Actualiza en ctx: ptrs_created, pg, page_idx, seen_count, min_id, max_id, last_valid.
-        """
         i = ctx['i']
         p = ctx['p']
         h = ctx['h']
@@ -516,28 +455,25 @@ class ISAMFile:
         last_boundary = -1
         partial_chunk = None
 
-        # Mientras queden punteros y hojas reales
         while ctx['ptrs_created'] < p and ctx['pg'] < h:
             chunk = []
             last_c = 1
             last_r = -1
 
-            # Intentamos llenar UNA página índice completa (i registros)
             for _ in range(i):
                 if ctx['ptrs_created'] >= p or ctx['pg'] >= h:
                     break
 
-                # (1) calculo de salto c
                 rem_leaves = h - ctx['pg']
                 rem_ptrs = p - ctx['ptrs_created']
                 c = max(1, rem_leaves // rem_ptrs)
 
                 left = ctx['pg']
-                # (2) leo hoja 'left'
+
                 lp = self.read_leaf_page(left)
-                # detecto “vacía completa” si todos los IDs son empty_key
+
                 if all(rec.key == empty_key for rec in lp.records):
-                    # corto aquí y paso este chunk parcial a Fase 2
+
                     partial_chunk = chunk
                     return last_boundary, partial_chunk
 
@@ -545,7 +481,7 @@ class ISAMFile:
                 last_c = c
                 ctx['ptrs_created'] += 1
 
-                # extraigo sólo IDs válidos para el cálculo de step
+
                 vals = [rec.key for rec in lp.records if rec.key != empty_key]
                 if vals:
                     if ctx['seen_count'] == 0:
@@ -554,7 +490,7 @@ class ISAMFile:
                     ctx['last_valid'] = vals[-1]
                     ctx['max_id'] = vals[-1]
 
-                # (3) busco el puntero 'right', saltándome overflow
+
                 cand = ctx['pg'] if ctx['pg'] < h else -1
                 while cand != -1:
                     nl = self.read_leaf_page(cand)
@@ -564,42 +500,42 @@ class ISAMFile:
                         break
                 right = cand if (cand != -1 and cand < h) else -1
 
-                # si 'right' apunta a hoja vacía, también cortamos
+
                 if right != -1:
                     rlp = self.read_leaf_page(right)
                     if rlp is None or all(rec.key == empty_key for rec in rlp.records):
                         partial_chunk = chunk
                         return last_boundary, partial_chunk
 
-                # (4) decido el rec_id: primer key de 'right' o last_valid
+
                 if right != -1:
                     rec_id = self.read_leaf_page(right).records[0].key
                 else:
                     rec_id = ctx['last_valid']
 
-                # (5) marco 'left' como página base (not_overflow=1)
+
                 self.write_leaf_page(LeafPage(
                     left, lp.next_page, 1, lp.records, l
                 ))
 
-                # (6) añado registro de índice
+
                 chunk.append(IndexRecord(self.column, rec_id, left, right))
                 last_r = right
 
-                # preparo siguiente iteración
+
                 if last_r != -1:
                     ctx['pg'] = last_r
 
-            # (7) si no llené la página, devuelvo chunk parcial
+
             if len(chunk) < i:
                 partial_chunk = chunk
                 return last_boundary, partial_chunk
 
-            # (8a) marcar la página 'right' como no-overflow=1
+
             if last_r != -1:
-                # leemos la página hoja para conservar sus registros y next_page
+
                 rlp = self.read_leaf_page(last_r)
-                # reescribimos esa hoja con not_overflow=1
+
                 self.write_leaf_page_at(
                     last_r,
                     rlp.records,
@@ -607,30 +543,30 @@ class ISAMFile:
                     not_overflow = 1
                 )
 
-            # (8) escribo la página de nivel 1 completa
+
             self.write_level1_page(IndexPage(ctx['page_idx'], chunk, i))
             ctx['ptrs_created'] += 1
             ctx['page_idx'] += 1
 
-            # (9) actualizo boundary y salto overflow
+
             last_boundary = last_r
             if last_r != -1:
                 ctx['pg'] = last_r + last_c
 
-        # Si salgo del bucle normalmente, retorno boundary y None
+
         return last_boundary, None
 
     def _build_level1_phase2(self, ctx, last_boundary, partial_chunk=None):
         i, p, h = ctx['i'], ctx['p'], ctx['h']
-        # Cantidad de punteros totales = (i+1)**2 = p.
-        # Ya escribimos ctx['phase1_pages'] páginas completas.
+
+
         slots = p - ctx['phase1_pages']
         step = ctx['step']
 
-        # Empezamos en la clave máxima real
+
         current_key = ctx['max_id']
 
-        # (B) Rellenar chunk parcial, si existe
+
         if partial_chunk:
             chunk = partial_chunk
             for _ in range(len(chunk), i):
@@ -641,14 +577,14 @@ class ISAMFile:
                 ctx['ptrs_created'] += 1
                 right = ctx['pg'] if ctx['pg'] < h else -1
 
-                # Generar siguiente clave:
+
                 current_key = increment_string_id(current_key, step)
                 chunk.append(IndexRecord(self.column, current_key, left, right))
 
             self.write_level1_page(IndexPage(ctx['page_idx'], chunk, i))
             ctx['page_idx'] += 1
 
-        # (C) Páginas completas restantes
+
         while ctx['ptrs_created'] < p and ctx['pg'] < h and ctx['page_idx'] < (i + 1):
             chunk = []
             current_key = increment_string_id(current_key, step)
@@ -675,12 +611,12 @@ class ISAMFile:
         Construye el Nivel 1 completo (fases 1 y 2).
         Asume que ya has corrido copy_to_leaf_records() antes.
         """
-        # 1) sacar parámetros del header
-        lf, ix = self.read_header()  # leaf_factor, index_factor
-        i = ix
-        p = (i + 1) ** 2  # punteros totales en nivel1
 
-        # 2) calcular cuántas hojas reales hay
+        lf, ix = self.read_header()
+        i = ix
+        p = (i + 1) ** 2
+
+
         rec0 = IndexRecord(self.column, 0, 0, 0)
         record_size = rec0.STRUCT.size
 
@@ -693,10 +629,10 @@ class ISAMFile:
         leaf_off = self._offset_leaves()
         h = (total - leaf_off) // leaf_sz
 
-        # 3) offset donde arrancan las páginas de nivel1 (tras el root)
+
         level1_off = self.HEADER_SIZE + idx_sz
 
-        # 4) preparar el contexto compartido
+
         ctx = {
             'i': i,
             'p': p,
@@ -711,28 +647,28 @@ class ISAMFile:
             'step': 0,
         }
 
-        # 5) abrir el archivo y situarnos en nivel1
+
         with open(self.filename, 'r+b') as f:
             f.seek(level1_off)
 
-            # ––––– FASE 1 –––––
-            # devuelve (last_boundary, partial_chunk)
+
+
             last_boundary, partial_chunk = self._build_level1_phase1(f, ctx)
 
-            # guardamos cuántas páginas completas escribimos
+
             ctx['phase1_pages'] = ctx['page_idx']
 
-            # 6) calculo de step para IDs de hojas “vacías”
-            # Número total de punteros que faltan (fase 2 + parcial):
+
+
             slots = (i + 1) ** 2 - ctx['phase1_pages']
-            # Y min/max vienen de ctx['min_id'], ctx['max_id'], que son cadenas.
+
             ctx['step'] = compute_string_step(ctx['min_id'], ctx['max_id'], slots)
 
-            # ––––– FASE 2 –––––
-            # dejamos ctx['pg'] tal cual (la fase1 ya lo posicionó justo tras last_boundary)
+
+
             self._build_level1_phase2(ctx, last_boundary, partial_chunk)
 
-        # 7) almacenamos cuántas páginas de nivel1 creamos
+
         self.num_level1 = ctx['page_idx']
         self.step = ctx['step']
 
@@ -743,8 +679,8 @@ class ISAMFile:
         registro es el mínimo de la primera hoja apuntada; si esa hoja está
         “vacía” se utiliza el rec_id de nivel1 menos `self.step`.
         """
-        # 1) recupero factores
-        lf, ix = self.read_header()  # leaf_factor, index_factor
+
+        lf, ix = self.read_header()
         i = ix
         is_string = (self.column.data_type == utils.DataType.VARCHAR)
         records: list[IndexRecord] = []
@@ -773,9 +709,9 @@ class ISAMFile:
         )
         self.write_root_page(root_page)
 
-# --------------------------------------------------------------------
-# 3) ISAMIndex: lógica del índice
-# --------------------------------------------------------------------
+
+
+
 
 class ISAMIndex:
     def __init__(self,
@@ -787,9 +723,9 @@ class ISAMIndex:
         self.column = column
         self.rf = RecordFile(schema)
 
-        # 1) Initialize the ISAMFile.
-        #    If leaf_factor/index_factor were passed (first creation),
-        #    use them; otherwise use placeholders (won't matter if file exists).
+
+
+
         lf_arg = leaf_factor or 0
         ix_arg = index_factor or 0
         self.file = ISAMFile(schema, column, lf_arg, ix_arg)
@@ -806,37 +742,37 @@ class ISAMIndex:
         Ajusta self.file.leaf_factor e self.file.index_factor para que
         las hojas queden llenas en fill_factor (%) y el nivel-1 abarque todas.
         """
-        # 1) Total de registros en RF
+
         N = count_records_in_rf(self.rf)
 
-        # 2) Tamaños en bytes
-        leaf_header = LeafPage.HSIZE  # cabecera hoja :contentReference[oaicite:0]{index=0}
-        index_header = IndexPage.HSIZE  # cabecera nivel-1 :contentReference[oaicite:1]{index=1}
-        rec_sz = LeafRecord(self.column, 0, 0).STRUCT.size  # tamaño de un LeafRecord
+
+        leaf_header = LeafPage.HSIZE
+        index_header = IndexPage.HSIZE
+        rec_sz = LeafRecord(self.column, 0, 0).STRUCT.size
         idx_sz = IndexRecord(self.column, 0, 0, 0).STRUCT.size
 
-        # 3) Capacidad máxima por página
+
         page_size = 4096
         l_max = (page_size - leaf_header) // rec_sz
         i_max = (page_size - index_header) // idx_sz
 
-        # 4) Arrancamos con el máximo y estimamos hojas
+
         f = fill_factor
         l = l_max
         leaf_pages_est = math.ceil(N / (l * f))
 
-        # 5) Calculamos index_factor mínimo que apunte a todas las hojas
+
         i = min(i_max, math.ceil(math.sqrt(leaf_pages_est)) - 1)
         p = (i + 1) ** 2
 
-        # 6) Reajustamos leaf_factor según p
+
         l = min(l_max, math.ceil(N / (p * f)))
 
-        # 7) Clampeamos para evitar valores extremos
+
         l = max(2, l)
         i = max(2, i)
 
-        # 8) Asignamos los nuevos factores y reescribimos cabecera en disco
+
         self.file.leaf_factor = l
         self.file.index_factor = i
         with open(self.file.filename, "r+b") as fh:
@@ -844,16 +780,16 @@ class ISAMIndex:
             fh.write(self.file.HEADER_STRUCT.pack(l, i))
 
     def build_index(self):
-        # 0) calcular leaf e index factor al 50% de ocupación
+
         self._calculate_factors(fill_factor=0.5)
 
-        # 1) copiar todos los records a las hojas
+
         self.file.copy_to_leaf_records(self.rf)
 
-        # 2) construir lvl1
+
         self.file.build_level1()
 
-        # 3) construir root
+
         self.file.build_root()
 
         print(self)
@@ -874,27 +810,27 @@ class ISAMIndex:
         if end < ini:
             return results
 
-        # 1) bajar desde la raíz hasta nivel 1
+
         root = self.file.read_root_page()
         lvl1_num = root.find_child_ptr(ini)
 
-        # 2) elegir la página de nivel 1 adecuada
+
         lvl1 = self.file.read_level1_page(lvl1_num)
 
-        # 3) desde ahí, el puntero a la hoja “base”
+
         leaf_num = lvl1.find_child_ptr(ini)
         lp: LeafPage = self.file.read_leaf_page(leaf_num)
 
-        # 4) barrer hoja a hoja hasta pasarnos de max_key
+
         while lp is not None:
             for rec in lp.records:
-                # ignorar registros nulos
+
                 if rec.key == empty_key:
                     continue
-                # si está por debajo del inicio, seguimos
+
                 if rec.key < ini:
                     continue
-                # si nos pasamos del rango, terminamos
+
                 if rec.key > end:
                     return results
                 results.append(rec.datapos)
@@ -927,31 +863,31 @@ class ISAMIndex:
         lf = self.file.leaf_factor
         empty_key = utils.get_empty_value(self.column)
 
-        # El record ya está en RecordFile; pos es su offset
+
         datapos = pos
         new_lr = LeafRecord(self.column, key, datapos)
 
-        # Asegurarnos de tener num_leaves actualizado
+
         if not hasattr(self.file, "num_leaves"):
             self.num_leaves = self.file.count_leaf_pages()
 
-        # 2) Hoja base desde ROOT → nivel1
+
         root = self.file.read_root_page()
         lvl1_num = root.find_child_ptr(new_lr.key)
         lvl1 = self.file.read_level1_page(lvl1_num)
         leaf_base = lvl1.find_child_ptr(new_lr.key)
 
-        # 3) Buscar hoja destino
+
         prev_leaf = None
         curr_leaf = leaf_base
         while True:
             leaf = self.file.read_leaf_page(curr_leaf)
-            # 3.1 Primer registro > new_lr.key
+
             idx = next((i for i, r in enumerate(leaf.records) if r.key > new_lr.key), None)
             if idx is not None:
                 dest = curr_leaf
                 break
-            # 3.2 Si la siguiente es una hoja “regular”, nos quedamos
+
             if leaf.next_page != -1:
                 nxt = self.file.read_leaf_page(leaf.next_page)
                 if nxt.not_overflow:
@@ -963,39 +899,39 @@ class ISAMIndex:
             prev_leaf = curr_leaf
             curr_leaf = leaf.next_page
 
-        # 4) Intentar insertar en destino
+
         leaf_dest = self.file.read_leaf_page(dest)
         cur = [r for r in leaf_dest.records if r.key != empty_key]
         next_pg = leaf_dest.next_page
 
         if len(cur) < lf:
-            # cabe: añadimos, ordenamos y paddeamos
+
             cur.append(new_lr)
             cur.sort(key=lambda r: r.key)
             while len(cur) < lf:
                 cur.append(LeafRecord(self.column, empty_key, -1))
             leaf_dest.records = cur
             leaf_dest.next_page = next_pg
-            # preserva not_overflow
+
             self.file.write_leaf_page(leaf_dest)
             print(f"Insertado en hoja destino #{dest}")
             return
 
-        # 5) destino lleno → probar fusión con overflow inmediato
+
         if next_pg != -1:
             leaf_over = self.file.read_leaf_page(next_pg)
             if not leaf_over.not_overflow:
                 cur2 = [r for r in leaf_over.records if r.key != empty_key]
                 if len(cur2) < lf:
-                    # fusionar destino + overflow + nuevo
+
                     merged = sorted(cur + cur2 + [new_lr], key=lambda r: r.key)
                     c1 = merged[:lf]
                     c2 = merged[lf:lf * 2]
                     nxt = leaf_over.next_page
-                    # paddear
+
                     while len(c1) < lf: c1.append(LeafRecord(self.column, empty_key, -1))
                     while len(c2) < lf: c2.append(LeafRecord(self.column, empty_key, -1))
-                    # reescribir
+
                     leaf_dest.records = c1
                     leaf_dest.next_page = next_pg
                     self.file.write_leaf_page(leaf_dest)
@@ -1005,20 +941,20 @@ class ISAMIndex:
                     print(f"Fusionado hojas {dest} + {next_pg}")
                     return
 
-        # 5.b) overflow simple
+
         new_leaf_id = self.num_leaves
         merged = sorted(cur + [new_lr], key=lambda r: r.key)
         c1, c2 = merged[:lf], merged[lf:]
-        # paddear
+
         while len(c1) < lf: c1.append(LeafRecord(self.column, empty_key, -1))
         while len(c2) < lf: c2.append(LeafRecord(self.column, empty_key, -1))
 
-        # reescribir hoja destino apuntando al nuevo overflow
+
         leaf_dest.records = c1
         leaf_dest.next_page = new_leaf_id
         self.file.write_leaf_page(leaf_dest)
 
-        # crear overflow al final
+
         overflow = LeafPage(
             page_num=new_leaf_id,
             next_page=next_pg,
@@ -1035,13 +971,13 @@ class ISAMIndex:
         self.logger.warning(f"DELETING: {key}")
         lf = self.file.leaf_factor
 
-        # 1) Bajar Root → Nivel1 → first candidate
+
         root    = self.file.read_root_page()
         lvl1_id = root.find_child_ptr(key)
         lvl1    = self.file.read_level1_page(lvl1_id)
         first   = lvl1.find_child_ptr(key)
 
-        # 2) Encontrar la primera hoja que realmente contenga key
+
         prev = None
         curr = first
         first = None
@@ -1057,7 +993,7 @@ class ISAMIndex:
             print(f"No existe ningún registro con id={key}")
             return
 
-        # 3) Encontrar la última hoja que contiene key
+
         last   = first
         lp_last = self.file.read_leaf_page(last)
         while lp_last.next_page != -1:
@@ -1069,10 +1005,10 @@ class ISAMIndex:
             else:
                 break
 
-        # CASO 1: solo una hoja en el rango
+
         if last == first:
             lp = self.file.read_leaf_page(first)
-            # 4a) filtro y compacto
+
             kept = [r for r in lp.records if r.key != key]
             kept.sort(key=lambda r: r.key)
             while len(kept) < lf:
@@ -1080,7 +1016,7 @@ class ISAMIndex:
                                         utils.get_empty_value(self.column),
                                         -1) )
 
-            # 4b) si era overflow y quedó vacía, desconecto
+
             if lp.not_overflow == 0 and all(r.key == utils.get_empty_value(self.column) for r in kept):
                 if prev is not None:
                     prev_lp = self.file.read_leaf_page(prev)
@@ -1090,7 +1026,7 @@ class ISAMIndex:
                                             not_overflow=None)
                 print(f"Hoja overflow {first} quedó vacía y fue desconectada")
             else:
-                # reescribo manteniendo bandera
+
                 self.file.write_leaf_page_at(first,
                                         kept,
                                         lp.next_page,
@@ -1098,8 +1034,8 @@ class ISAMIndex:
                 print(f"Eliminado id={key} en hoja única {first}")
             return
 
-        # CASO GENERAL: varias hojas
-        # 4) reconectar prev → first
+
+
         if prev is not None:
             prev_lp = self.file.read_leaf_page(prev)
             self.file.write_leaf_page_at(prev,
@@ -1107,24 +1043,24 @@ class ISAMIndex:
                                     first,
                                     not_overflow=None)
 
-        # reconectar first → last
+
         first_lp = self.file.read_leaf_page(first)
         self.file.write_leaf_page_at(first,
                                 first_lp.records,
                                 last,
                                 not_overflow=None)
 
-        # 5) juntar registros de first y last (sin key)
+
         lp_first = self.file.read_leaf_page(first)
         lp_last  = self.file.read_leaf_page(last)
         combined = ([r for r in lp_first.records if r.key != key] +
                     [r for r in lp_last.records  if r.key != key])
         combined.sort(key=lambda r: r.key)
 
-        # 6) repartir en first y last
+
         kept_first = combined[:lf]
         kept_last  = combined[lf:lf*2]
-        # rellenar
+
         empty = LeafRecord(self.column,
                            utils.get_empty_value(self.column),
                            -1)
@@ -1133,7 +1069,7 @@ class ISAMIndex:
         while len(kept_last) < lf:
             kept_last.append(empty)
 
-        # 7) reescribir first y last
+
         self.file.write_leaf_page_at(first,
                                 kept_first,
                                 last,
@@ -1143,7 +1079,7 @@ class ISAMIndex:
                                 lp_last.next_page,
                                 not_overflow=lp_last.not_overflow)
 
-        # 8) si last quedó vacía *y* es overflow, desconectarla
+
         if lp_last.not_overflow == 0 and all(r.key == utils.get_empty_value(self.column)
                                              for r in kept_last):
             after = lp_last.next_page
@@ -1170,14 +1106,14 @@ class ISAMIndex:
 
         empty_key = utils.get_empty_value(self.column)
 
-        # 1) Raíz
+
         s.append("---- ROOT PAGE ----")
         root = self.file.read_root_page()
         for rec in root.records:
             s.append(f"  ID={rec.key}, Left_lvl1={rec.left}, Right_lvl1={rec.right}")
         s.append("")
 
-        # 2) Nivel 1
+
         s.append("---- LEVEL-1 PAGES ----")
         for lvl in range(self.num_level1):
             page = self.file.read_level1_page(lvl)
@@ -1186,9 +1122,9 @@ class ISAMIndex:
                 s.append(f"  ID={rec.key}, Left_leaf={rec.left}, Right_leaf={rec.right}")
             s.append("")
 
-        # 3) Hojas encadenadas
+
         s.append("---- LEAF PAGES ----")
-        # arrancamos en la primera hoja de la primera entrada de nivel1 (slot 0)
+
 
         first_lvl1 = self.file.read_level1_page(0)
         leaf_num = first_lvl1.records[0].left
@@ -1220,12 +1156,12 @@ def count_records_in_rf(rf):
     return count
 
 def test_isam_integrity(isam: ISAMIndex):
-    dbg = []  # Acumulador de mensajes de depuración
+    dbg = []
     lf, ix = isam.file.read_header()
     expected_regular_pages = (ix + 1) ** 2
 
     try:
-        # 1) Validar cantidad de páginas regulares alcanzables via next_page
+
         root = isam.file.read_root_page()
         level1_0 = isam.file.read_level1_page(0)
         first_leaf = level1_0.records[0].left
@@ -1250,7 +1186,7 @@ def test_isam_integrity(isam: ISAMIndex):
         if count_regular_linked != expected_regular_pages:
             raise AssertionError(f"[Error páginas regulares] Alcanzables={count_regular_linked}, Esperadas={expected_regular_pages}")
 
-        # 2) Validar IDs en ROOT y nivel1 (min id de right leaf)
+
         root = isam.file.read_root_page()
         level1_pages = [isam.file.read_level1_page(i) for i in range(isam.num_level1)]
         empty_key = utils.get_empty_value(isam.column)
@@ -1285,7 +1221,7 @@ def test_isam_integrity(isam: ISAMIndex):
                         f"min_key_en_leaf[{right_leaf}]={min_key}"
                     )
 
-        # 3) Verificar encadenamiento hojas regulares
+
         first_leaf = level1_pages[0].records[0].left
         visited_chain = set()
         leaf_num = first_leaf
@@ -1303,7 +1239,7 @@ def test_isam_integrity(isam: ISAMIndex):
                 f"Regulares esperadas={count_regular_linked}"
             )
 
-        # 4) DFS sobre índice para acceder hojas
+
         dbg.append("DEBUG: Iniciando DFS sobre índice ROOT → Nivel1 → Hojas")
         visited_leaves = set()
         visited_lvl1 = set()
@@ -1335,7 +1271,7 @@ def test_isam_integrity(isam: ISAMIndex):
                 f"Regulares esperadas={count_regular_linked}"
             )
 
-        # 5) Validar rangeSearch cubre todos registros en RecordFile
+
         rf = isam.rf
         total_records = count_records_in_rf(rf)
         results = isam.rangeSearch(
@@ -1348,12 +1284,12 @@ def test_isam_integrity(isam: ISAMIndex):
                 f"Registros en RF={total_records}"
             )
 
-        # Si llegamos aquí, funciono tod o
+
         print("Todas las pruebas de integridad ISAM pasaron correctamente.")
 
     except AssertionError as e:
-        # Solo en caso de fallo, mostramos la depuración
+
         for line in dbg:
             print(line)
-        # Y luego relanzamos el error para que el test marque fallo
+
         raise

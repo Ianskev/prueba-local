@@ -15,7 +15,6 @@ async def upload_file(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # Check if file already exists for this user
     existing_file = db.query(FileModel).filter(
         FileModel.user_id == current_user.id,
         FileModel.filename == file.filename
@@ -27,11 +26,9 @@ async def upload_file(
             detail=f"A file with name '{file.filename}' already exists for this user"
         )
     
-    # Save the file
     csv_handler = CSVHandler(current_user.id)
     file_path = await csv_handler.save_csv_file(file)
     
-    # Create file record in database
     db_file = FileModel(
         filename=file.filename,
         file_path=file_path,
@@ -59,7 +56,6 @@ def preview_csv_file(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # Check if file exists and belongs to user
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
         FileModel.user_id == current_user.id
@@ -68,7 +64,6 @@ def preview_csv_file(
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     
-    # Get preview
     csv_handler = CSVHandler(current_user.id)
     return csv_handler.get_csv_preview(file.filename, rows)
 
@@ -79,7 +74,6 @@ def import_csv_to_table(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # Check if file exists and belongs to user
     file = db.query(FileModel).filter(
         FileModel.id == file_id,
         FileModel.user_id == current_user.id
@@ -88,7 +82,6 @@ def import_csv_to_table(
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     
-    # Import the CSV
     csv_handler = CSVHandler(current_user.id)
     import_result = csv_handler.import_csv_to_table(file.filename, table_name)
     return import_result
@@ -101,18 +94,15 @@ async def delete_file(
 ):
     """Delete a file from the user's uploads and database"""
     
-    # Get the file from database
     file = db.query(FileModel).filter(FileModel.id == file_id, FileModel.user_id == current_user.id).first()
     
     if not file:
         raise HTTPException(status_code=404, detail="File not found or you don't have permission")
     
-    # Delete the physical file
     csv_handler = CSVHandler(current_user.id)
     try:
         csv_handler.delete_file(file.filename)
         
-        # Delete from database
         db.delete(file)
         db.commit()
         

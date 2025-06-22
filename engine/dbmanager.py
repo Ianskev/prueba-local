@@ -353,25 +353,25 @@ class DBManager:
                 if column.data_type != utils.get_data_type(condition.right.value):
                     self.error(f"value '{condition.right.value}' is not of data type {column.data_type}")
                 match op:
-                    case BinaryOp.EQ: # Usa indexes
+                    case BinaryOp.EQ:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.list_to_bitmap(index.search(condition.right.value))
-                    case BinaryOp.NEQ: # Usa indexes
+                    case BinaryOp.NEQ:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.bitmap_not(self.list_to_bitmap(index.search(condition.right.value)))
-                    case BinaryOp.LT: # Usa indexes (menos hash)
+                    case BinaryOp.LT:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.bitmap_difference(self.list_to_bitmap(index.rangeSearch(None, condition.right.value)), self.list_to_bitmap(index.search(condition.right.value)))
-                    case BinaryOp.GT: # Usa indexes (menos hash)
+                    case BinaryOp.GT:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.bitmap_difference(self.list_to_bitmap(index.rangeSearch(condition.right.value, None)), self.list_to_bitmap(index.search(condition.right.value)))
-                    case BinaryOp.LE: # Usa indexes (menos hash)
+                    case BinaryOp.LE:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.list_to_bitmap(index.rangeSearch(None, condition.right.value))
-                    case BinaryOp.GE: # Usa indexes (menos hash)
+                    case BinaryOp.GE:
                         index = self.get_index(table_schema, condition.left.column_name)
                         return self.list_to_bitmap(index.rangeSearch(condition.right.value, None))
-        elif condition_type == BetweenCondition: # Usa indexes (menos hash)
+        elif condition_type == BetweenCondition:
             column = None
             for i in table_schema.columns:
                 if i.name == condition.left.column_name:
@@ -387,7 +387,7 @@ class DBManager:
             return self.list_to_bitmap(index.rangeSearch(condition.mid.value, condition.right.value))
         elif condition_type == NotCondition:
             return self.bitmap_not(self.select_condition(table_schema, condition.condition))
-        elif condition_type == BooleanColumn: # Usa indexes
+        elif condition_type == BooleanColumn:
             column = None
             for i in table_schema.columns:
                 if i.name == condition.column_name:

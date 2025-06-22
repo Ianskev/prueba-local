@@ -44,7 +44,6 @@ class DeleteStmt(Stmt):
         self.table_name = table_name
         self.condition = condition
 
-# <column-def> ::= <column-name> <data-type> [ "PRIMARY" "KEY" ] [ "INDEX" <index-type> ]
 class ColumnDefinition():
     def __init__(self, column_name : str = None, data_type : DataType = None, is_primary_key : bool = False, index_type : IndexType = IndexType.NONE, varchar_limit : int = 0):
         self.column_name = column_name
@@ -63,7 +62,6 @@ class CreateTableStmt(Stmt):
     def add_column_definition(self, column_def : ColumnDefinition = None) -> None:
         self.column_def_list.append(column_def)
 
-# <drop-table-stmt> ::= "DROP" "TABLE" <table-name>
 class DropTableStmt(Stmt):
     def __init__(self, table_name : str = None, if_exists: bool = False, user_id: int = None):
         super().__init__()
@@ -71,7 +69,6 @@ class DropTableStmt(Stmt):
         self.if_exists = if_exists
         self.user_id = user_id
 
-# <create-index-stmt> ::= "CREATE" "INDEX" <index-name> "ON" <table-name> [ "USING" <index-type> ] "(" <column-list> ")"
 class CreateIndexStmt(Stmt):
     def __init__(self, index_name : str = None, table_name : str = None, index_type : IndexType = None, column_list : list[str] = None):
         super().__init__()
@@ -83,7 +80,6 @@ class CreateIndexStmt(Stmt):
     def add_column(self, column_name : str) -> None:
         self.column_list.append(column_name)
 
-# <drop-index-stmt> ::= "DROP" "INDEX" <index-name> [ "ON" <table-name> ]
 class DropIndexStmt(Stmt):
     def __init__(self, index_name : str = None, table_name : str = None):
         super().__init__()
@@ -157,8 +153,6 @@ class Parser:
         except ParseError as e:
             raise e
 
-    # <sql> ::= <statement_list>
-    # <statement_list> ::= <statement> ";" { <statement> ";" }
     def parse_sql(self) -> SQL:
         sql = SQL()
         sql.add_stmt(self.parse_stmt())
@@ -167,14 +161,7 @@ class Parser:
         if self.current.type != Token.Type.END:
             self.error("unexpected items after statement")
         return sql
-    
-    # <statement> ::= <select-stmt>
-    #         | <create-table-stmt>
-    #         | <drop-table-stmt>
-    #         | <insert-stmt>
-    #         | <delete-stmt>
-    #         | <create-index-stmt>
-    #         | <drop-index-stmt>
+
     def parse_stmt(self) -> Stmt:
         if self.match(Token.Type.SELECT):
             return self.parse_select_stmt()
@@ -201,8 +188,6 @@ class Parser:
         else:
             self.error("unexpected start of an instruction")
 
-    # <select-stmt> ::= "SELECT" <select-list> "FROM" <table-name> [ "WHERE" <condition> ]
-    # <select-list> ::= "*" | <column-name> { "," <column-name> }
     def parse_select_stmt(self) -> SelectStmt:
         select_stmt = SelectStmt()
         if self.match(Token.Type.STAR):
@@ -239,9 +224,6 @@ class Parser:
             select_stmt.limit = self.str_into_type(self.previous.lexema, self.previous)
         return select_stmt
 
-    # <create-table-stmt> ::= "CREATE" "TABLE" <table-name> "(" <column-def-list> ")"
-    # <column-def-list> ::= <column-def> { "," <column-def> }
-    
     def parse_create_table_stmt(self) -> CreateTableStmt:
         create_table_stmt = CreateTableStmt()
         if self.match(Token.Type.IF):
@@ -262,7 +244,6 @@ class Parser:
             self.error("expected ')' after column definitions")
         return create_table_stmt
 
-    # <column-def> ::= <column-name> <data-type> [ "PRIMARY" "KEY" ] [ "INDEX" <index-type> ]
     def parse_column_def(self) -> ColumnDefinition:
         column_definition = ColumnDefinition()
         if not self.match(Token.Type.ID):
@@ -319,7 +300,6 @@ class Parser:
         return column_definition
                 
 
-    # <drop-table-stmt> ::= "DROP" "TABLE" <table-name>
     def parse_drop_table_stmt(self) -> DropTableStmt:
         drop_table_stmt = DropTableStmt()
         if self.match(Token.Type.IF):
@@ -334,9 +314,6 @@ class Parser:
     def match_values(self) -> bool:
         return self.match(Token.Type.NUMVAL) or self.match(Token.Type.FLOATVAL) or self.match(Token.Type.STRINGVAL) or self.match(Token.Type.BOOLVAL)
 
-    # <insert-stmt> ::= "INSERT" "INTO" <table-name> [ "(" <column-list> ")" ] "VALUES" "(" <value-list> ")"
-    # <column-list> ::= <column-name> { "," <column-name> }
-    # <value-list> ::= <value> { "," <value> }
     def parse_insert_stmt(self) -> InsertStmt:
         insert_stmt = InsertStmt()
         if not self.match(Token.Type.INTO):
@@ -358,7 +335,7 @@ class Parser:
             self.error("expected VALUES clause in INSERT statement")
         if not self.match(Token.Type.LPAR):
             self.error("expected '(' after VALUES keyword")
-        if self.match(Token.Type.LPAR): # POINT
+        if self.match(Token.Type.LPAR):
             if not self.match(Token.Type.FLOATVAL):
                 self.error("expected a valid float value por x coordinate on POINT declaration")
             x = self.str_into_type(self.previous.lexema, self.previous)
@@ -375,7 +352,7 @@ class Parser:
                 self.error("expected value after '('")
             insert_stmt.add_value(self.str_into_type(self.previous.lexema, self.previous))
         while self.match(Token.Type.COMMA):
-            if self.match(Token.Type.LPAR): # POINT
+            if self.match(Token.Type.LPAR):
                 if not self.match(Token.Type.FLOATVAL):
                     self.error("expected a valid float value por x coordinate on POINT declaration")
                 x = self.str_into_type(self.previous.lexema, self.previous)
@@ -394,8 +371,6 @@ class Parser:
         if not self.match(Token.Type.RPAR):
             self.error("expected ')' after values")
         return insert_stmt
-
-    # <delete-stmt> ::= "DELETE" "FROM" <table-name> [ "WHERE" <condition> ]
     def parse_delete_stmt(self) -> DeleteStmt:
         delete_stmt = DeleteStmt()
         if not self.match(Token.Type.FROM):
@@ -407,8 +382,6 @@ class Parser:
             delete_stmt.condition = self.parse_or_condition()
         return delete_stmt
 
-    # <create-index-stmt> ::= "CREATE" "INDEX" <index-name> "ON" <table-name> [ "USING" <index-type> ] "(" <column-list> ")"
-    # <column-list> ::= <column-name> { "," <column-name> }
     def parse_create_index_stmt(self) -> CreateIndexStmt:
         create_index_stmt = CreateIndexStmt()
         if not self.match(Token.Type.ID):
@@ -450,7 +423,6 @@ class Parser:
             self.error("expected ')' after column names")
         return create_index_stmt
 
-    # <drop-index-stmt> ::= "DROP" "INDEX" <index-name> [ "ON" <table-name> ]
     def parse_drop_index_stmt(self) -> DropIndexStmt:
         drop_index_stmt = DropIndexStmt()
         if not self.match(Token.Type.ID):
@@ -462,8 +434,7 @@ class Parser:
             self.error("expected table name after ON keyword")
         drop_index_stmt.table_name = self.previous.lexema
         return drop_index_stmt
-    
-    # <or-condition> ::= <and-condition> { "OR" <and-condition> }
+
     def parse_or_condition(self) -> Condition:
         left = self.parse_and_condition()
         while self.match(Token.Type.OR):
@@ -471,7 +442,6 @@ class Parser:
             left = BinaryCondition(left, BinaryOp.OR, right)
         return left
 
-    # <and-condition> ::= <not-condition> { "AND" <not-condition> }
     def parse_and_condition(self) -> Condition:
         left = self.parse_not_condition()
         while self.match(Token.Type.AND):
@@ -479,13 +449,11 @@ class Parser:
             left = BinaryCondition(left, BinaryOp.AND, right)
         return left
 
-    # <not-condition> ::= [ "NOT" ] <predicate>
     def parse_not_condition(self) -> Condition:
         if(self.match(Token.Type.NOT)):
             return NotCondition(self.parse_predicate())
         return self.parse_predicate()
 
-    # <predicate> ::= <simple-condition> | "(" <condition> ")"
     def parse_predicate(self) -> Condition:
         if(self.match(Token.Type.LPAR)):
             condition = self.parse_or_condition()
@@ -494,7 +462,6 @@ class Parser:
             return condition
         return self.parse_simple_condition()
 
-    # <simple-condition> ::= <column-name> <operator> <value> | <boolean-column-name> | <column-name> "BETWEEN" <value> "AND" <value>
     def parse_simple_condition(self) -> Condition:
         if not self.match(Token.Type.ID):
             self.error("expected column name in condition")
@@ -504,7 +471,7 @@ class Parser:
             between_condition.left = ConditionColumn(column_name)
             if not self.match_values():
                 self.error("expected a value after BETWEEN keyword")
-            between_condition.mid = ConditionValue(self.str_into_type(self.previous.lexema, self.previous)) # TODO depende del tipo (en utils)
+            between_condition.mid = ConditionValue(self.str_into_type(self.previous.lexema, self.previous))
             if not self.match(Token.Type.AND):
                 self.error("expected AND keyword after value in BETWEEN clause")
             if not self.match_values():
@@ -603,7 +570,7 @@ class Parser:
                 self.error("expected ')' after k value")
             simple_condition.right = ConditionValue((x, y, k))
         else:
-            if self.match(Token.Type.LPAR): # POINT
+            if self.match(Token.Type.LPAR):
                 if not self.match(Token.Type.FLOATVAL):
                     self.error("expected a valid float value por x coordinate on POINT declaration")
                 x = self.str_into_type(self.previous.lexema, self.previous)
@@ -995,7 +962,7 @@ def execute_sql(sql:str):
 
     try:
         interpreter = Interpreter()
-        return interpreter.interpret(sql_parse)  # (result, message)
+        return interpreter.interpret(sql_parse)
     except RuntimeError as e:
         return None, str(e)
 

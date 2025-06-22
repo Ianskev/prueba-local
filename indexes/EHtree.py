@@ -1,5 +1,3 @@
-# indices/EH.py
-
 import os, sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -12,9 +10,6 @@ import logger
 from engine import stats
 import hashlib
 
-# -------------
-# Clase Record
-# -------------
 class Record:
     """
     Representa un par (key, pointer) donde `pointer` es la posición
@@ -38,18 +33,15 @@ class Record:
         return cls(k, p)
 
 
-# --------------------------------------------
-# Bucket en disco con chaining de overflow
-# --------------------------------------------
 class Bucket:
-    HEADER_FMT  = "!ii8s"              # num_records, next_bucket_id, padding
+    HEADER_FMT  = "!ii8s"
     HEADER_SIZE = struct.calcsize(HEADER_FMT)
 
     def __init__(self, bucket_id, capacity, file_manager):
         self.bucket_id      = bucket_id
         self.capacity       = capacity
         self.fm             = file_manager
-        self.records        = []       # lista de Record
+        self.records        = []
         self.next_bucket_id = -1
 
     def load(self):
@@ -106,7 +98,6 @@ class Bucket:
         if self.next_bucket_id != -1:
             deleted = self.fm.load_bucket(self.next_bucket_id).delete(key)
             if deleted:
-                # si el overflow quedó vacío, enlazamos su siguiente y reciclamos
                 ov = self.fm.load_bucket(self.next_bucket_id)
                 if not ov.records:
                     self.next_bucket_id = ov.next_bucket_id
@@ -123,24 +114,18 @@ class Bucket:
         return out
 
 
-# ---------------------
-# Nodo del árbol digital
-# ---------------------
 class TreeNode:
     def __init__(self, level: int, bit_prefix: str):
         self.level      = level
         self.bit_prefix = bit_prefix
-        self.left       = None       # tipo TreeNode
+        self.left       = None
         self.right      = None
-        self.bucket_id  = None       # tipo int
+        self.bucket_id  = None
 
     def is_leaf(self):
         return self.left is None and self.right is None
 
 
-# ---------------------------------------------
-# FileManager: maneja I/O de buckets y free-list
-# ---------------------------------------------
 class FileManager:
     HEADER_FMT  = "!ii8s"
     HEADER_SIZE = struct.calcsize(HEADER_FMT)
@@ -149,7 +134,6 @@ class FileManager:
         self.path     = path
         self.capacity = capacity
         if not os.path.exists(self.path):
-            # inicializar header: next_bucket_id=0, capacidad
             with open(self.path, "wb") as f:
                 f.write(struct.pack(self.HEADER_FMT, 0, self.capacity, b"\x00"*8))
                 stats.count_write()
@@ -168,7 +152,6 @@ class FileManager:
             stats.count_write()
 
     def _bucket_size(self):
-        # espacio fijo por bucket
         avg = 256
         return Bucket.HEADER_SIZE + self.capacity * (4 + avg)
 
@@ -202,14 +185,9 @@ class FileManager:
         return Bucket(bid, self.capacity, self)
 
     def delete_bucket(self, bid: int):
-        # aquí podríamos implementar free-list si queremos reciclar buckets
         pass
 
 
-# -----------------------
-# La clase pública que
-# exporta DBManager
-# -----------------------
 class ExtendibleHashTree:
 
     def __init__(self,
@@ -226,21 +204,17 @@ class ExtendibleHashTree:
         self.max_depth = max_depth
         self.M = 1 << max_depth
 
-        # archivos de buckets (.db) e índice (.tree)
         self.data_path = utils.get_index_file_path(schema.table_name,
                                                    column.name,
                                                    IndexType.HASH)
         self.tree_path = self.data_path + ".tree"
 
-        # prepara FileManager
         self.fm = FileManager(self.data_path, bucket_capacity)
 
-        # carga o inicializa la raíz
         if os.path.exists(self.tree_path):
             with open(self.tree_path, "rb") as f:
                 self.root = pickle.load(f)
         else:
-            # Dos hojas iniciales 0 y 1
             self.root = TreeNode(0, "")
             left  = TreeNode(1, "0")
             right = TreeNode(1, "1")
@@ -282,9 +256,7 @@ class ExtendibleHashTree:
         b    = self.fm.load_bucket(leaf.bucket_id)
         if b.insert(rec):
             return
-        # overflow o split
         if leaf.level >= self.max_depth:
-            # encadenamos overflow
             ov = self.fm.create_bucket()
             b.load()
             b.next_bucket_id = ov.bucket_id
@@ -294,7 +266,6 @@ class ExtendibleHashTree:
         self._split_leaf(leaf, new_rec=rec)
 
     def _split_leaf(self, leaf: TreeNode, new_rec: Record=None, recs_list=None):
-        # recolección
         if recs_list is None:
             temp = self.fm.load_bucket(leaf.bucket_id)
             recs = temp.get_all()
@@ -318,7 +289,6 @@ class ExtendibleHashTree:
         lc.bucket_id = b0.bucket_id
         rc.bucket_id = b1.bucket_id
 
-        # rellenar o resplit recursivamente
         if len(r0) <= self.bucket_capacity:
             for x in r0: b0.insert(x)
         else:
@@ -353,7 +323,6 @@ class ExtendibleHashTree:
             hi = utils.get_max_value(self.column)
         self.logger.warning(f"RANGE-SEARCH: {lo}, {hi}")
         out = []
-        # recorro todos y filtro en memoria:
         for rec in self.get_all():
             if lo <= rec.key <= hi:
                 out.append(rec.pointer)
@@ -368,10 +337,8 @@ class ExtendibleHashTree:
         leaf = self._find_leaf_node(bits)
         b    = self.fm.load_bucket(leaf.bucket_id)
         if b.delete(key):
-            # opcional: podríamos colapsar hojas vacías (_merge_leaf)
             self._save_tree()
             return
-        # si no existía, simplemente no hace nada
     
     def get_all(self) -> list[Record]:
         """
@@ -401,12 +368,10 @@ class ExtendibleHashTree:
             else:
                 dfs(n.left); dfs(n.right)
         dfs(self.root)
-        # ordenar por key
         recs.sort(key=lambda r: r.key)
         return [r.pointer for r in recs]
 
     def close(self):
-        # opcionalmente asegurar persistencia
         self._save_tree()
 
     def clear(self):

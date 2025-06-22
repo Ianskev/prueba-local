@@ -88,7 +88,7 @@ class AVLFile:
         data = node.pack()
         with open(self.filename, "rb+") as file:
             if pos == -1:
-                file.seek(0, 2)  # ir al final
+                file.seek(0, 2)
                 offset = file.tell()
                 pos = (offset - self.HEADER_SIZE) // self.NODE_SIZE
             else:
@@ -136,14 +136,13 @@ class AVLTree:
         self.logger.info("Cleaning data, removing files")
         os.remove(self.indexFile.filename)
 
-    # --- Funciones auxiliares ---
 
     def _seek(self, key:int, pos:int = -2):
-        if pos == -2: # get header
+        if pos == -2:
             pos = self.indexFile.get_header()
-        if pos == -1: # no existe
+        if pos == -1:
             return pos
-        punt = self.indexFile.read(pos) # obtenemos la tupla y realizamos busqueda binaria
+        punt = self.indexFile.read(pos)
         if punt is None:
             return -1
         if key == punt.val:
@@ -188,9 +187,9 @@ class AVLTree:
         x.right = pos_y
         y.left = t2
         y.height = self._update_height(y)
-        self.indexFile.write(y, pos_y) # actualizamos la tupla en el archivo
+        self.indexFile.write(y, pos_y)
         x.height = self._update_height(x)
-        self.indexFile.write(x,pos_x) # actualizamos la tupla en el archivo
+        self.indexFile.write(x,pos_x)
         return pos_x
 
     def _left_rotate(self, x: AVLNode, pos_x: int, y: AVLNode, pos_y: int):
@@ -198,19 +197,17 @@ class AVLTree:
         y.left = pos_x
         x.right = t2
         x.height = self._update_height(x)
-        self.indexFile.write(y, pos_y) # actualizamos la tupla en el archivo
+        self.indexFile.write(y, pos_y)
         y.height = self._update_height(y)
-        self.indexFile.write(x, pos_x) # actualizamos la tupla en el archivo
+        self.indexFile.write(x, pos_x)
         return pos_y
 
     def _balance(self, n:AVLNode, pos:int):
-        # una vez insertado, actualizamos la altura y balance del nodo
         n.height = self._update_height(n)
         balance = self._get_balance(n)
 
         if balance > 1:
             left = self.indexFile.read(n.left)
-            # Caso 1
             if self._get_balance(left) >= 0:
                 self.logger.warning(f"RIGHT ROTATE: {n.val}")
                 if pos == self.indexFile.get_header():
@@ -218,7 +215,6 @@ class AVLTree:
                 return self._right_rotate(n,pos,left,n.left)
 
 
-            # Caso 2
             else:
                 self.logger.warning(f"LEFT - RIGHT ROTATE: {n.val}")
                 left_right = self.indexFile.read(left.right)
@@ -230,23 +226,20 @@ class AVLTree:
 
         elif balance < -1:
             right = self.indexFile.read(n.right)
-            # Caso 1
             if self._get_balance(right) <= 0:
                 self.logger.warning(f"LEFT ROTATE: {n.val}")
-                if pos == self.indexFile.get_header():  # Si es la raíz, actualizamos la raíz
+                if pos == self.indexFile.get_header():
                     self.indexFile.write_header(n.right)
                 return self._left_rotate(n, pos, right, n.right)
 
-            # Caso 2
             else:
                 self.logger.warning(f"RIGHT - LEFT ROTATE: {n.val}")
                 right_left = self.indexFile.read(right.left)
                 n.right = self._right_rotate(right, n.right,right_left , right.left)
-                if pos == self.indexFile.get_header():  # Si la raíz cambia, actualizamos el encabezado
+                if pos == self.indexFile.get_header():
                     self.indexFile.write_header(n.right)
                 return self._left_rotate(n, pos, right_left, n.right)
 
-        # else
         self.indexFile.write(n, pos)
         return pos
 
@@ -254,14 +247,13 @@ class AVLTree:
     def _add_aux(self, n: AVLNode, pos:int = -2):
         if pos == -2:
             pos = self.indexFile.get_header()
-        if pos == -1: # no hay ningun registro
+        if pos == -1:
             self.indexFile.write_header(self.indexFile.write(n))
             return self.indexFile.get_header()
 
         point = self.indexFile.read(pos)
         if not point:
             return self.indexFile.write(n)
-        #buscamos recursivamente
         if n.val == point.val:
             self.logger.error("DUPLICATE NODE")
             return pos
@@ -275,7 +267,7 @@ class AVLTree:
     def _range_search_aux(self, r: list[int], i, j, pos:int = -2):
         if pos == -2:
             pos = self.indexFile.get_header()
-        if pos == -1:  # no hay ningun registro
+        if pos == -1:
             return
         punt = self.indexFile.read(pos)
         if i <= punt.val <= j:
@@ -336,8 +328,6 @@ class AVLTree:
             return pos
 
         return self._balance(node, pos)
-
-    # --- Funciones principales ---
     
     def insert(self, pointer: int, key):
         self.logger.warning(f"INSERTING: {key}")
@@ -364,7 +354,6 @@ class AVLTree:
         self._range_search_aux(r, i, j)
         return r
 
-    # list enteros que son posiciones
     def search(self, key) -> list[int]:
         self.logger.warning(f"SEARCHING: {key}")
         pos = self._seek(key)

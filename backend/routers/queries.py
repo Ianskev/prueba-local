@@ -20,7 +20,6 @@ def execute_query(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # For CREATE TABLE statements, we should track the table in the database
     query_lower = query_request.query.lower().strip()
     
     try:
@@ -28,19 +27,15 @@ def execute_query(
         result, message = execute_sql(query_request.query)
         end = time.time()
         
-        # If it's a CREATE TABLE query and successful, add it to the user's tables
         if query_lower.startswith("create table") and "successfully" in message.lower():
-            # Extract table name from query - simplified version
             table_name = query_lower.split("create table")[1].split("(")[0].strip()
             
-            # Check if table already exists for this user
             existing_table = db.query(Table).filter(
                 Table.user_id == current_user.id,
                 Table.name == table_name
             ).first()
             
             if not existing_table:
-                # Create table record
                 db_table = Table(
                     name=table_name,
                     user_id=current_user.id

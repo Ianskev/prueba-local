@@ -23,7 +23,6 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationships
     tables = relationship("Table", back_populates="owner")
     files = relationship("File", back_populates="owner")
 
@@ -48,7 +47,6 @@ class File(Base):
 
     owner = relationship("User", back_populates="files")
 
-# Create all tables in the database
 Base.metadata.create_all(bind=engine)
 
 def get_db():
