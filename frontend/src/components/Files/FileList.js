@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Files.css';
+import { fileService } from '../../services/api';
 
 // API Base URL - igual que en app.js
 const API_BASE_URL = 'http://localhost:8000';
@@ -87,19 +88,7 @@ const FileList = () => {
   const handleDelete = async (fileId, fileName) => {
     if (window.confirm(`Are you sure you want to delete file "${fileName}"? This action cannot be undone.`)) {
       try {
-        const authToken = getAuthToken();
-        
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to delete file');
-        }
+        await fileService.deleteFile(fileId);
         
         // Actualizar la lista de archivos localmente
         setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
@@ -107,7 +96,7 @@ const FileList = () => {
         
       } catch (err) {
         console.error('Error deleting file:', err);
-        setError('Error deleting file: ' + err.message);
+        setError('Error deleting file: ' + (err.response?.data?.detail || err.message));
       }
     }
   };

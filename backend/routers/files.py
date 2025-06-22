@@ -92,3 +92,31 @@ def import_csv_to_table(
     csv_handler = CSVHandler(current_user.id)
     import_result = csv_handler.import_csv_to_table(file.filename, table_name)
     return import_result
+
+@router.delete("/{file_id}", response_model=dict)
+async def delete_file(
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a file from the user's uploads and database"""
+    
+    # Get the file from database
+    file = db.query(FileModel).filter(FileModel.id == file_id, FileModel.user_id == current_user.id).first()
+    
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found or you don't have permission")
+    
+    # Delete the physical file
+    csv_handler = CSVHandler(current_user.id)
+    try:
+        csv_handler.delete_file(file.filename)
+        
+        # Delete from database
+        db.delete(file)
+        db.commit()
+        
+        return {"success": True, "message": f"File {file.filename} deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")

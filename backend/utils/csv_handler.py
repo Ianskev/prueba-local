@@ -100,3 +100,15 @@ class CSVHandler:
             return files
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+    
+    def delete_file(self, filename: str) -> bool:
+        """Delete a CSV file from user's directory"""
+        file_path = os.path.join(self.upload_dir, filename)
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"File {filename} not found")
+        
+        try:
+            os.remove(file_path)
+            return True
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
