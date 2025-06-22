@@ -233,9 +233,9 @@
 
 .files-card-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  align-items: center;
+  width: 100%;
 }
 
 .files-card-icon {
@@ -253,16 +253,23 @@
 .files-delete-btn {
   background: none;
   border: none;
-  color: #64748b;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 50%;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .files-delete-btn:hover {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
+  background-color: rgba(255, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+
+.files-delete-btn:active {
+  transform: scale(0.95);
 }
 
 .files-card-title {

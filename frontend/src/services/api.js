@@ -68,7 +68,7 @@ export const fileService = {
     },
   }),
   listFiles: () => api.get('/files'),
-  deleteFile: (filename) => api.delete(`/files/${filename}`),
+  deleteFile: (fileId) => api.delete(`/files/${fileId}`),
 };
 
 // Servicios de gestión de tablas

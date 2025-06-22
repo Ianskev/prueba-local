@@ -83,6 +83,35 @@ const FileList = () => {
     }
   };
 
+  // Función para eliminar un archivo
+  const handleDelete = async (fileId, fileName) => {
+    if (window.confirm(`Are you sure you want to delete file "${fileName}"? This action cannot be undone.`)) {
+      try {
+        const authToken = getAuthToken();
+        
+        const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to delete file');
+        }
+        
+        // Actualizar la lista de archivos localmente
+        setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+        setError('');
+        
+      } catch (err) {
+        console.error('Error deleting file:', err);
+        setError('Error deleting file: ' + err.message);
+      }
+    }
+  };
+
   useEffect(() => {
     loadUserFiles();
   }, []);
@@ -206,6 +235,12 @@ const FileList = () => {
               >
                 <div className="files-card-header">
                   <div className="files-card-icon">📄</div>
+                  <button
+                    onClick={() => handleDelete(file.id, file.filename)}
+                    className="files-delete-btn"
+                  >
+                    🗑️
+                  </button>
                 </div>
                 
                 <h3 className="files-card-title">{file.filename}</h3>
