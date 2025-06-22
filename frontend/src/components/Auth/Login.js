@@ -101,7 +101,7 @@ const Login = ({ onLogin }) => {
           )}
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label htmlFor="username" className="form-label">Username</label>
+              <label htmlFor="username" className="form-label">Email</label>
               <input
                 type="text"
                 id="username"
