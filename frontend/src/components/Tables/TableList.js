@@ -76,7 +76,17 @@ const TableList = () => {
           throw new Error(result.detail || 'Failed to delete table');
         }
         
-        fetchTables(); // Refresh tables after delete
+        // Refresh tables locally
+        setTables(prevTables => prevTables.filter(table => table.name !== tableName));
+        
+        // Opcional: Propagar el cambio a todas las partes de la aplicación
+        // mediante un evento personalizado que otros componentes pueden escuchar
+        const dropTableEvent = new CustomEvent('tableDropped', { 
+          detail: { tableName } 
+        });
+        window.dispatchEvent(dropTableEvent);
+        
+        fetchTables(); // También refrescamos del servidor como respaldo
       } catch (err) {
         setError('Error deleting table: ' + err.message);
         console.error(err);

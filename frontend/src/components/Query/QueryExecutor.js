@@ -125,6 +125,15 @@ const QueryExecutor = () => {
       if (trimmedQuery.toLowerCase().includes('create table') && result.message.includes('successful')) {
         loadTables();
       }
+      
+      // Añadido: Si fue DROP TABLE, también refresh los dropdowns
+      if (trimmedQuery.toLowerCase().includes('drop table') && result.message.includes('successful')) {
+        loadTables();
+        // Si el dropdown del table name está seleccionado con la tabla que acabamos de borrar, lo limpiamos
+        if (selectedTableName && trimmedQuery.toLowerCase().includes(selectedTableName.toLowerCase())) {
+          setSelectedTableName('');
+        }
+      }
 
     } catch (error) {
       console.error('Query error:', error);

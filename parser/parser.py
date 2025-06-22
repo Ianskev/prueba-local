@@ -65,10 +65,11 @@ class CreateTableStmt(Stmt):
 
 # <drop-table-stmt> ::= "DROP" "TABLE" <table-name>
 class DropTableStmt(Stmt):
-    def __init__(self, table_name : str = None, if_exists: bool = False):
+    def __init__(self, table_name : str = None, if_exists: bool = False, user_id: int = None):
         super().__init__()
         self.table_name = table_name
         self.if_exists = if_exists
+        self.user_id = user_id
 
 # <create-index-stmt> ::= "CREATE" "INDEX" <index-name> "ON" <table-name> [ "USING" <index-type> ] "(" <column-list> ")"
 class CreateIndexStmt(Stmt):

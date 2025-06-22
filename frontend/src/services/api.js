@@ -75,7 +75,16 @@ export const fileService = {
 export const tableService = {
   createTable: (tableData) => api.post('/tables/create', tableData),
   listTables: () => api.get('/tables'),
-  deleteTable: (tableName) => api.delete(`/tables/${tableName}`),
+  deleteTable: async (tableName) => {
+    const response = await queryService.executeQuery(`DROP TABLE ${tableName}`);
+    
+    const dropTableEvent = new CustomEvent('tableDropped', { 
+      detail: { tableName } 
+    });
+    window.dispatchEvent(dropTableEvent);
+    
+    return response;
+  },
   async getTableData(tableName, page = 1) {
     try {
       const response = await api.get(`/tables/${tableName}/data?page=${page}`);

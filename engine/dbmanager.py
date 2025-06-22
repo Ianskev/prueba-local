@@ -210,6 +210,26 @@ class DBManager:
         path = f"{self.tables_path}/{table_name}"
         if os.path.exists(path):
             shutil.rmtree(path)
+            
+            try:
+                from backend.database import SessionLocal
+                from backend.database import Table as DBTable
+                from fastapi import HTTPException
+                
+                db = SessionLocal()
+                try:
+                    table_entry = db.query(DBTable).filter(DBTable.name == table_name).first()
+                    if table_entry:
+                        db.delete(table_entry)
+                        db.commit()
+                        self.logger.info(f"Table {table_name} removed from database")
+                except Exception as e:
+                    db.rollback()
+                    self.logger.error(f"Error removing table {table_name} from database: {str(e)}")
+                finally:
+                    db.close()
+            except ImportError as e:
+                self.logger.error(f"Could not connect to SQL database: {str(e)}")
         else:
             if not if_exists:
                 self.error("table doesn't exist")
