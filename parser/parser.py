@@ -3,7 +3,7 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
 from parser.scanner import Token, Scanner
-from engine.conditionschema import BinaryOp, Condition, ConditionColumn, ConditionValue, NotCondition, BinaryCondition, BetweenCondition, BooleanColumn
+from engine.model_condition import BinaryOp, Condition, ConditionColumn, ConditionValue, NotCondition, BinaryCondition, BetweenCondition, BooleanColumn
 from engine.model import TableSchema, DataType, IndexType, SelectSchema, DeleteSchema, ConditionSchema, Column
 from engine.dbmanager import DBManager
 

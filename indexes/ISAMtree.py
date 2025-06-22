@@ -4,7 +4,7 @@ import os, struct, math, re
 from engine.model import TableSchema, Column, IndexType
 from engine import utils
 from engine import stats
-from engine.record_file import RecordFile
+from engine.record import RecordFile
 import logger
 
 # --------------------------------------------------------------------
